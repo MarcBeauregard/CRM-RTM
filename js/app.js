@@ -379,8 +379,8 @@
       const yy = y(m.v), h = Math.max(0, H - padB - yy);
       const r = Math.min(7, bw / 2);
       const tip = `data-tip-b="${money(m.v)}" data-tip-s="${cap(MOIS_L[m.m])} ${m.y} · ${plural(m.n, 'affaire')}${m.partial ? ' · mois en cours' : ''}"`;
-      s += `<g class="col" ${tip}><rect class="hit" x="${padL + i * cw}" y="${padT}" width="${cw}" height="${H - padT - padB}"/>`;
-      s += `<rect class="ring" x="${x - 4}" y="${padT - 2}" width="${bw + 8}" height="${H - padT - padB + 4}" rx="10" fill="none" stroke="transparent" stroke-width="1"/>`;
+      s += `<g class="bcol" ${tip}><rect class="hit" x="${padL + i * cw}" y="${padT}" width="${cw}" height="${H - padT - padB}"/>`;
+      s += `<rect class="colring" x="${x - 4}" y="${padT - 2}" width="${bw + 8}" height="${H - padT - padB + 4}" rx="10" fill="none" stroke="transparent" stroke-width="1"/>`;
       if (m.partial) {
         s += `<rect x="${x + 0.75}" y="${yy + 0.75}" width="${bw - 1.5}" height="${Math.max(0, h - 1.5)}" rx="${r}" fill="color-mix(in srgb, var(--money) 8%, transparent)" stroke="var(--money)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
       } else if (h > 0) {
@@ -1004,8 +1004,42 @@
     $$('[data-x]', w).forEach((b) => (b.onclick = close));
     $('.modal-wrap', w).onclick = (e) => { if (e.target.classList.contains('modal-wrap')) close(); };
     $('form', w).onsubmit = (e) => { e.preventDefault(); if (onOk(new FormData(e.target)) !== false) close(); };
-    setTimeout(() => { const f = $('input', w); if (f) f.focus(); }, 60);
+    $$('.datefield', w).forEach((b) => (b.onclick = () => calendarPop(b, $(`input[name="${b.dataset.name}"]`, w).value, (iso) => {
+      $(`input[name="${b.dataset.name}"]`, w).value = iso; b.querySelector('span').textContent = dLong(iso);
+    })));
+    setTimeout(() => { const f = $('input:not([type=hidden])', w); if (f) f.focus(); }, 60);
     w.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  }
+  const TIMES = []; for (let h = 7; h <= 18; h++) for (const m of ['00', '15', '30', '45']) TIMES.push(`${String(h).padStart(2, '0')}:${m}`);
+  const dateField = (id, name, iso) => `<button type="button" class="datefield" id="${id}" data-name="${name}">${I('cal')}<span>${dLong(iso)}</span></button><input type="hidden" name="${name}" value="${iso}">`;
+
+  // Calendrier en popover : un mois, lundi en premier, 6 rangées fixes, point sous aujourd'hui.
+  function calendarPop(anchor, iso, onPick) {
+    let view = new Date(iso + 'T12:00:00'); view.setDate(1);
+    const el = document.createElement('div');
+    el.className = 'pop cal'; el.id = 'pop';
+    const draw = () => {
+      const y = view.getFullYear(), m = view.getMonth();
+      const first = (new Date(y, m, 1).getDay() + 6) % 7;
+      const start = new Date(y, m, 1 - first, 12);
+      let cells = '';
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start.getTime() + i * DAY); const k = d.toISOString().slice(0, 10);
+        cells += `<button type="button" data-d="${k}" class="${d.getMonth() !== m ? 'out' : ''} ${k === iso ? 'sel' : ''} ${k === TODAY ? 'today' : ''}">${d.getDate()}</button>`;
+      }
+      el.innerHTML = `<div class="cal-h"><b>${cap(MOIS_L[m])} ${y}</b><button type="button" class="icon-btn" data-step="-1" aria-label="Mois précédent">${I('right', 'flip')}</button><button type="button" class="icon-btn" data-step="1" aria-label="Mois suivant">${I('right')}</button></div>
+        <div class="cal-w">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((x) => `<span>${x}</span>`).join('')}</div><div class="cal-g">${cells}</div>
+        <div class="cal-f"><button type="button" class="btn plain" data-d="${TODAY}">Aujourd’hui</button></div>`;
+      $$('[data-step]', el).forEach((b) => (b.onclick = (e) => { e.stopPropagation(); view.setMonth(view.getMonth() + +b.dataset.step); draw(); }));
+      $$('[data-d]', el).forEach((b) => (b.onclick = () => { onPick(b.dataset.d); el.remove(); }));
+    };
+    closePop(); draw(); document.body.appendChild(el);
+    const r = anchor.getBoundingClientRect();
+    let x = r.left, yy = r.bottom + 6;
+    if (x + el.offsetWidth > innerWidth - 8) x = innerWidth - el.offsetWidth - 8;
+    if (yy + el.offsetHeight > innerHeight - 8) yy = Math.max(8, r.top - el.offsetHeight - 6);
+    el.style.left = x + 'px'; el.style.top = yy + 'px';
+    setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!el.contains(e.target)) { el.remove(); document.removeEventListener('pointerdown', off); } }), 0);
   }
   const opt = (arr, sel) => arr.map(([v, l]) => `<option value="${v}" ${String(v) === String(sel) ? 'selected' : ''}>${esc(l)}</option>`).join('');
 
@@ -1015,7 +1049,7 @@
       <div class="field"><label for="f-t">Titre</label><input id="f-t" name="title" required placeholder="Ex. : Lève-personnes sur rail — 12 chambres"></div>
       <div class="field"><label for="f-o">Organisation</label><select id="f-o" name="org">${opt(db.orgs.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map((o) => [o.id, o.name]))}</select></div>
       <div class="field-row"><div class="field"><label for="f-v">Valeur ($)</label><input id="f-v" name="value" inputmode="numeric" placeholder="0"></div>
-      <div class="field"><label for="f-c">Clôture prévue</label><input id="f-c" name="close" type="date" value="${isoAdd(30)}"></div></div>
+      <div class="field"><label for="f-c">Clôture prévue</label>${dateField('f-c', 'close', isoAdd(30))}</div></div>
       <div class="field-row"><div class="field"><label for="f-s">Étape · ${esc(pl.name)}</label><select id="f-s" name="stage">${opt(pl.stages.map((s) => [s.id, s.name]), pre.stageId)}</select></div>
       <div class="field"><label for="f-u">Responsable</label><select id="f-u" name="owner">${opt(db.users.map((u) => [u.id, u.name]), prefs.owner || 1)}</select></div></div>`, 'Créer', (f) => {
       const d = { id: Math.max(...db.deals.map((x) => x.id)) + 1, title: f.get('title'), pipelineId: pl.id, stageId: +f.get('stage'), orgId: +f.get('org'), personId: (db.persons.find((p) => p.orgId === +f.get('org')) || {}).id || null, ownerId: +f.get('owner'), value: +String(f.get('value')).replace(/[^\d]/g, '') || 0, status: 'open', created: TODAY, stageChanged: TODAY, expectedClose: f.get('close') || isoAdd(30), lostReason: null, closeDate: null, soumission: null, labels: [] };
@@ -1030,7 +1064,7 @@
       <div class="field"><label for="p-t">Titre</label><input id="p-t" name="title" required placeholder="Ex. : Installation rails aile B"></div>
       <div class="field"><label for="p-d">Affaire gagnée liée</label><select id="p-d" name="deal">${opt(won.map((d) => [d.id, `${d.title} — ${org(d.orgId).name}`]))}</select></div>
       <div class="field-row"><div class="field"><label for="p-p">Phase · ${esc(b.name)}</label><select id="p-p" name="phase">${opt(b.phases.map((f) => [f.id, f.name]), pre.phaseId)}</select></div>
-      <div class="field"><label for="p-e">Échéance</label><input id="p-e" name="end" type="date" value="${isoAdd(45)}"></div></div>`, 'Créer', (f) => {
+      <div class="field"><label for="p-e">Échéance</label>${dateField('p-e', 'end', isoAdd(45))}</div></div>`, 'Créer', (f) => {
       const d = deal(+f.get('deal'));
       const p = { id: Math.max(...db.projects.map((x) => x.id)) + 1, title: `${org(d.orgId).name} — ${f.get('title')}`, boardId: b.id, phaseId: +f.get('phase'), orgId: d.orgId, dealId: d.id, ownerId: 1, start: TODAY, end: f.get('end') || isoAdd(45), status: 'open', health: 'ok', value: d.value, labels: [], tasks: [] };
       db.projects.push(p); save(); render(); toast('Projet créé'); setTimeout(() => openProject(p.id), 200);
@@ -1041,7 +1075,7 @@
     modal('Planifier une activité', `
       <div class="field"><label>Type</label><div class="seg" id="a-type" style="display:flex">${Object.entries(ACT).map(([k, [i, l]], n) => `<button type="button" aria-pressed="${n === 0}" data-t="${k}" style="flex:1">${I(i)}<span class="hide-sm">${l}</span></button>`).join('')}</div></div>
       <div class="field"><label for="a-s">Sujet</label><input id="a-s" name="subject" required placeholder="Ex. : Appel de suivi"></div>
-      <div class="field-row"><div class="field"><label for="a-d">Date</label><input id="a-d" type="date" name="due" value="${isoAdd(1)}"></div><div class="field"><label for="a-h">Heure</label><input id="a-h" type="time" name="time" value="10:00"></div></div>`, 'Planifier', (f) => {
+      <div class="field-row"><div class="field"><label for="a-d">Date</label>${dateField('a-d', 'due', isoAdd(1))}</div><div class="field"><label for="a-h">Heure</label><select id="a-h" name="time">${opt(TIMES.map((t) => [t, t]), '10:00')}</select></div></div>`, 'Planifier', (f) => {
       const t = ($('#a-type [aria-pressed="true"]') || {}).dataset.t || 'appel';
       db.activities.push({ id: Date.now(), dealId: d.id, type: t, subject: f.get('subject'), due: f.get('due') || isoAdd(1), time: f.get('time') || '10:00', done: false, ownerId: 1 });
       save(); render(); refreshSheet(); toast('Activité planifiée');
@@ -1094,7 +1128,7 @@
     db.orgs.filter((o) => m(o.name) || m(o.ville) || m(o.acomba)).slice(0, 4).forEach((o) => out.push({ sec: 'Organisations', l: esc(o.name), meta: o.ville, icon: I('org'), fn: () => openOrg(o.id) }));
     db.persons.filter((p) => m(p.name) || m(p.email)).slice(0, 4).forEach((p) => out.push({ sec: 'Personnes', l: esc(p.name), meta: esc(org(p.orgId).name.slice(0, 18)), icon: I('person'), fn: () => openPerson(p.id) }));
     const items = []; let last = null;
-    out.forEach((o) => { if (o.sec !== last) { items.push({ sec: o.sec }); last = o.sec; } items.push(o); });
+    out.forEach(({ sec, ...o }) => { if (sec !== last) { items.push({ sec }); last = sec; } items.push(o); });
     return items;
   }
   function wireSearch() {
@@ -1149,9 +1183,9 @@
       let x = r.left + r.width / 2 - w / 2; x = Math.max(8, Math.min(innerWidth - w - 8, x));
       let y = r.top - h - 8; if (y < 8) y = r.bottom + 8;
       tip.style.left = x + 'px'; tip.style.top = y + 'px';
-      if (el.closest('.chart')) { $$('.chart .col').forEach((c) => c.classList.toggle('on', c === el)); }
+      if (el.closest('.chart')) { $$('.chart .bcol').forEach((c) => c.classList.toggle('on', c === el)); }
     };
-    const hide = () => { tip.classList.remove('on'); cur = null; $$('.chart .col.on').forEach((c) => c.classList.remove('on')); };
+    const hide = () => { tip.classList.remove('on'); cur = null; $$('.chart .bcol.on').forEach((c) => c.classList.remove('on')); };
     document.addEventListener('pointerover', (e) => {
       if (e.pointerType === 'touch') return;
       const el = e.target.closest('[data-tip],[data-tip-b]');
