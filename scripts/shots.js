@@ -43,7 +43,7 @@ const only = process.argv[3];
   await run('d-newdeal', 1440, 900, 'light', '#affaires', (p) => p.click('#newDeal'));
   await run('d-menu', 1440, 900, 'light', '#affaires', (p) => p.click('#plBtn'));
   await run('d-search', 1440, 900, 'light', '#accueil', async (p) => { await p.fill('#q', 'chsld'); });
-  await run('d-tip', 1440, 900, 'light', '#accueil', async (p) => { await p.hover('.chart .col >> nth=8', { force: true }); });
+  await run('d-tip', 1440, 900, 'light', '#accueil', async (p) => { await p.hover('.chart .bcol >> nth=8', { force: true }); });
   console.log(errors.length ? errors.join('\n') : 'OK — aucune erreur');
   await b.close();
 })();
