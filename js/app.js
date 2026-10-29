@@ -706,7 +706,7 @@
     </div></div>`;
     if (matchMedia('(max-width: 760px)').matches) {
       $('.g-today', body).style.left = `calc(170px + (100% - 170px) * ${pos(TODAY) / 100})`;
-      const g = $('.gantt', body); g.scrollLeft = (g.scrollWidth - 170) * (pos(TODAY) / 100) - g.clientWidth / 2 + 170;
+      const g = $('.gantt', body); g.scrollLeft = (g.scrollWidth - 170) * (pos(TODAY) / 100) - (g.clientWidth - 170) * 0.6;
     }
     bindRows(body);
   }

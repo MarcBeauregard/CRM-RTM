@@ -677,3 +677,14 @@ svg.i.flip { transform: scaleX(-1); }
 .cal-g button.today { color: var(--danger); font-weight: 600; }
 .cal-g button.sel { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .cal-f { display: flex; justify-content: center; padding-top: 6px; }
+.dropbar { opacity: 0; visibility: hidden; pointer-events: none; transition: transform 0.4s var(--ease), opacity 0.2s, visibility 0s 0.4s; }
+.dropbar.on { opacity: 1; visibility: visible; pointer-events: auto; transition: transform 0.4s var(--ease), opacity 0.2s; }
+/* Chronologie : colonne des noms fixe pendant le défilement horizontal */
+.g-name { position: sticky; left: 0; z-index: 2; background: var(--surface); align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
+.g-row.head .g-name { z-index: 4; }
+.g-bar { background: color-mix(in srgb, var(--accent) 13%, var(--surface)); }
+.g-bar i { background: color-mix(in srgb, var(--accent) 42%, var(--surface)); border-radius: 7px 0 0 7px; }
+.g-bar span, .g-bar i + span { color: var(--ink); font-weight: 600; }
+.g-bar.risque { background: color-mix(in srgb, var(--danger-fill) 12%, var(--surface)); }
+.g-bar.risque i { background: color-mix(in srgb, var(--danger-fill) 40%, var(--surface)); }
+.g-name { box-shadow: 0.5px 0 0 var(--sep); }
