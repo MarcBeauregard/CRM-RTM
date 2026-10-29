@@ -47,6 +47,13 @@ const check = (ok, label) => { console.log(`${ok ? '✓' : '✗'} ${label}`); if
   check(await p.evaluate(() => !!document.activeElement.closest('#sheet')), 'focus dans la fiche ouverte au clavier');
   await p.keyboard.press('Escape'); await p.waitForTimeout(500);
   check(await p.locator('#sheet').count() === 0, 'Échap ferme la fiche');
+  const kid = await p.locator('.dcard').first().getAttribute('data-id'); const st0 = await p.evaluate((i) => window.__crm.db.deals.find((d) => d.id === +i).stageId, kid);
+  await p.locator('.dcard').first().focus(); await p.keyboard.press('ArrowRight'); await p.waitForTimeout(250);
+  check(await p.evaluate(([i, s0]) => window.__crm.db.deals.find((d) => d.id === +i).stageId !== s0, [kid, st0]) && await p.evaluate((i) => document.activeElement.dataset.id === i, kid), '→ déplace la carte d’une étape, le focus suit');
+  await p.keyboard.press('Escape'); await p.locator('body').click({ position: { x: 5, y: 5 } });
+  await p.keyboard.press('/'); await p.waitForTimeout(150);
+  check(await p.evaluate(() => document.activeElement.id === 'q'), 'touche / : recherche');
+  await p.keyboard.press('Escape');
   await p.keyboard.press('n'); await p.waitForTimeout(300);
   check(await p.locator('.modal h2:has-text("Nouvelle affaire")').count() === 1, 'touche N : nouvelle affaire');
 

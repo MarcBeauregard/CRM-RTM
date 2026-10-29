@@ -769,3 +769,30 @@ svg.i.flip { transform: scaleX(-1); }
 .ns-reasons .chip { height: 40px; }
 .toast { max-width: calc(100vw - 32px); white-space: nowrap; }
 .toast > span:not(.ti) { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* ———————————————————————— Accessibilité (audit scripts/a11y.js) ————————————————————————
+ * Textes secondaires/tertiaires ≥ 4,5:1 sur tous les fonds ; boutons pleins ≥ 4,5:1 ;
+ * cibles tactiles ≥ 44 px sur iPhone (zone de frappe étendue quand le visuel reste compact). */
+:root { --ink-2: rgba(60, 60, 67, 0.86); --ink-3: rgba(60, 60, 67, 0.78); --accent-btn: #0071e3; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --ink-2: rgba(235, 235, 245, 0.84); --ink-3: rgba(235, 235, 245, 0.64); --accent-btn: #0060c7; --accent-ink: #5aaeff; } }
+:root[data-theme='dark'] { --ink-2: rgba(235, 235, 245, 0.84); --ink-3: rgba(235, 235, 245, 0.64); --accent-btn: #0060c7; --accent-ink: #5aaeff; }
+.btn.primary, .add-btn, .chip[aria-pressed='true'], .cal-g button.sel { background: var(--accent-btn); }
+.btn.primary:hover, .add-btn:hover { background: color-mix(in srgb, var(--accent-btn) 86%, #000); }
+.avatar { color: hsl(var(--h) 60% 26%); }
+
+@media (max-width: 760px) {
+  .icon-btn { width: 44px; height: 44px; }
+  .bar { gap: 2px; }
+  .pill, .btn, .seg button, .col-add, .chip, .check, .lnk { position: relative; }
+  .pill::after, .btn::after, .seg button::after, .col-add::after, .chip::after { content: ''; position: absolute; inset: -8px 0; }
+  .check::after { content: ''; position: absolute; inset: -9px; border-radius: 50%; }
+  .page-head .tools .btn.primary { width: 44px; height: 44px; }
+}
+.nav a .count { color: var(--ink-2); }
+
+/* Une seule action + par vue : le bouton libellé de la page sur ordinateur, le + de la barre sur iPhone. */
+body[data-view='affaires'] #quickAdd, body[data-view='projets'] #quickAdd { display: none; }
+@media (max-width: 760px) {
+  body[data-view='affaires'] #quickAdd, body[data-view='projets'] #quickAdd { display: inline-grid; }
+  #newDeal, #newProj { display: none; }
+}

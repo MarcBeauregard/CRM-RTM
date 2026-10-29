@@ -173,7 +173,7 @@
       <div class="toast" id="toast" role="status"></div>`;
     $('#themeBtn').onclick = (e) => themeMenu(e.currentTarget);
     $('#moreBtn').onclick = (e) => moreMenu(e.currentTarget);
-    $('#quickAdd').onclick = () => dealForm();
+    $('#quickAdd').onclick = () => (current === 'projets' ? projectForm() : dealForm());
     $('#qMobile').onclick = () => searchSheet();
     wireSearch();
   }
@@ -214,6 +214,9 @@
     const v = $('#view');
     v.classList.toggle('wide', current === 'affaires' || current === 'projets');
     v.classList.toggle('dash', current === '');
+    document.body.dataset.view = current || 'accueil';
+    const qa = $('#quickAdd'); const lbl = current === 'projets' ? 'Nouveau projet' : 'Nouvelle affaire';
+    qa.setAttribute('aria-label', lbl); qa.dataset.tip = current === 'projets' ? lbl : `${lbl} (N)`;
     routes[current]();
     navRefresh(current || 'dash');
     onScroll();
@@ -448,7 +451,7 @@
     const st = actState(d);
     const rot = rotDays(d);
     const icon = { none: ['warn', 'Aucune activité planifiée'], late: ['clock', `En retard : ${st.a && st.a.subject}`], today: ['clock', `Aujourd’hui : ${st.a && st.a.subject}`], planned: [st.a ? ACT[st.a.type][0] : 'cal', st.a ? `${rel(st.a.due)} : ${st.a.subject}` : ''] }[st.k];
-    return `<article class="dcard ${rot ? 'rotten' : ''}" data-deal="${d.id}" data-id="${d.id}" tabindex="0">
+    return `<article class="dcard ${rot ? 'rotten' : ''}" data-deal="${d.id}" data-id="${d.id}" tabindex="0" role="button" aria-keyshortcuts="ArrowLeft ArrowRight" aria-label="${esc(d.title)}, ${esc(o.name)}, ${money(d.value)}, ${esc(stageOf(d).name)}${rot ? `, inactive depuis ${rot} jours` : ''}">
       ${d.labels.length ? `<div class="labels">${d.labels.map((l) => `<span class="badge ${l === 'Chaud' ? 'warn' : 'purple'}">${esc(l)}</span>`).join('')}</div>` : ''}
       <div class="t">${esc(d.title)}</div>
       <div class="o">${esc(o.name)}</div>
@@ -474,6 +477,16 @@
       </section>`;
     }).join('')}</div></div>`;
     $$('[data-add]', body).forEach((b) => (b.onclick = () => dealForm({ stageId: +b.dataset.add })));
+    // Alternative au glisser-déposer : ← / → déplace la carte ciblée d'une étape.
+    $$('.dcard', body).forEach((c) => c.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const d = deal(+c.dataset.id); const i = stageIdx(d) + (e.key === 'ArrowRight' ? 1 : -1);
+      if (i < 0 || i >= pl.stages.length) return;
+      const from = d.stageId, pc = d.stageChanged; d.stageId = pl.stages[i].id; d.stageChanged = TODAY; save(); render();
+      const again = $(`.dcard[data-id="${d.id}"]`); if (again) again.focus();
+      toast(`Déplacée vers « ${stageOf(d).name} »`, () => { d.stageId = from; d.stageChanged = pc; save(); render(); });
+    }));
     dragBoard($('#board'), '.dcard', '.col', (id, colEl, idx) => {
       const d = deal(+id); const to = +colEl.dataset.stage;
       if (d.stageId === to) return false;
@@ -1274,6 +1287,7 @@
       if (e.key === 'Escape' && !$('.modal')) { closePop(); closeSheet(); }
       const typing = e.target.closest && e.target.closest('input, textarea, select, [contenteditable]');
       if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && !$('.modal') && e.key.toLowerCase() === 'n') { e.preventDefault(); dealForm(); }
+      if (!typing && !$('.modal') && e.key === '/') { e.preventDefault(); if (getComputedStyle($('#searchBox')).display === 'none') searchSheet(); else q.focus(); }
     });
   }
   function searchSheet() {
