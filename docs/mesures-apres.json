@@ -2,9 +2,9 @@
   "iPhone": {
     "S1": {
       "name": "Noter une visite et planifier le suivi dans 2 semaines",
-      "taps": 8,
-      "fields": 3,
-      "screens": 4,
+      "taps": 2,
+      "fields": 1,
+      "screens": 2,
       "ok": true,
       "err": ""
     },
@@ -18,7 +18,7 @@
     },
     "S3": {
       "name": "Voir ma journée et cocher une activité",
-      "taps": 2,
+      "taps": 1,
       "fields": 0,
       "screens": 1,
       "ok": true,
@@ -68,9 +68,9 @@
   "Ordinateur": {
     "S1": {
       "name": "Noter une visite et planifier le suivi dans 2 semaines",
-      "taps": 8,
-      "fields": 3,
-      "screens": 3,
+      "taps": 2,
+      "fields": 1,
+      "screens": 2,
       "ok": true,
       "err": ""
     },
@@ -84,7 +84,7 @@
     },
     "S3": {
       "name": "Voir ma journée et cocher une activité",
-      "taps": 2,
+      "taps": 1,
       "fields": 0,
       "screens": 1,
       "ok": true,

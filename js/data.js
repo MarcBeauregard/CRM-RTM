@@ -172,14 +172,14 @@
     const past = int(0, 3);
     for (let k = 0; k < past; k++) {
       const t = pick(actTypes);
-      activities.push({ id: actId++, dealId: d.id, type: t, subject: pick(actLabels[t]), due: addDays(-int(1, 60)), time: `${int(8, 16)}:${pick(['00', '15', '30', '45'])}`, done: true, ownerId: d.ownerId });
+      activities.push({ id: actId++, dealId: d.id, type: t, subject: pick(actLabels[t]), due: addDays(-int(1, 60)), time: `${String(int(8, 16)).padStart(2, "0")}:${pick(['00', '15', '30', '45'])}`, done: true, ownerId: d.ownerId });
     }
     if (status === 'open') {
       const r = rnd();
       if (r < 0.82) {
         const t = pick(actTypes);
         const off = r < 0.07 ? -int(1, 9) : r < 0.16 ? 0 : int(1, 21);
-        activities.push({ id: actId++, dealId: d.id, type: t, subject: pick(actLabels[t]), due: addDays(off), time: `${int(8, 16)}:${pick(['00', '15', '30', '45'])}`, done: false, ownerId: d.ownerId });
+        activities.push({ id: actId++, dealId: d.id, type: t, subject: pick(actLabels[t]), due: addDays(off), time: `${String(int(8, 16)).padStart(2, "0")}:${pick(['00', '15', '30', '45'])}`, done: false, ownerId: d.ownerId });
       }
     }
     if (rnd() < 0.55) {

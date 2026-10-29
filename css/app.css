@@ -729,3 +729,35 @@ svg.i.flip { transform: scaleX(-1); }
 .qa-seg { display: flex; margin-bottom: 16px; }
 .qa-seg button { flex: 1 1 0; justify-content: center; padding: 0 6px; }
 @media (max-width: 760px) { .qa-seg button { height: 32px; font-size: 12.5px; } }
+
+/* Ma journée */
+.rows > li.rows-sec { min-height: 0; padding: 14px 0 4px; font-size: 12.5px; font-weight: 600; color: var(--danger); cursor: default; }
+.rows > li.rows-sec + li::before { display: none; }
+@media (max-width: 760px) {
+  .content.dash { display: flex; flex-direction: column; }
+  .content.dash .dash-main { display: contents; }
+  .content.dash .page-head { order: 0; }
+  .content.dash .dash-day { order: 1; margin-bottom: 16px; }
+  .content.dash .dash-kpis { order: 2; }
+  .content.dash .dash-chart { order: 3; margin-bottom: 16px; }
+  .content.dash .grid-3 { order: 4; }
+  .rows .check { width: 28px; height: 28px; }
+  .rows > li { min-height: 60px; }
+}
+/* Suite après une activité */
+.next-step .modal-h { align-items: flex-start; gap: 12px; }
+.next-step h2 { font-size: 18px; }
+.ns-ok { width: 32px; height: 32px; border-radius: 50%; background: var(--ok-fill); color: #fff; display: grid; place-items: center; flex: none; margin-top: 1px; }
+.ns-ok svg.i { width: 18px; height: 18px; stroke-width: 2.6; }
+.ns-sub { color: var(--ink-3); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ns-note { width: 100%; resize: none; border: 0; outline: 0; border-radius: 12px; padding: 12px 14px; background: var(--surface-2); font-size: 15px; line-height: 1.45; }
+.ns-note:focus { box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 0 0.5px var(--accent); }
+.ns-lbl { font-size: 13px; color: var(--ink-2); font-weight: 500; margin: 18px 2px 8px; }
+.ns-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ns-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent-ink); transition: background 0.15s, transform 0.12s; padding: 6px 4px; }
+.ns-chip:hover { background: color-mix(in srgb, var(--accent) 17%, transparent); }
+.ns-chip:active { transform: scale(0.96); }
+.ns-chip b { font-size: 14px; font-weight: 600; }
+.ns-chip span { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .ns-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.r-time { font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }

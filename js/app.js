@@ -212,6 +212,7 @@
   function render() {
     const v = $('#view');
     v.classList.toggle('wide', current === 'affaires' || current === 'projets');
+    v.classList.toggle('dash', current === '');
     routes[current]();
     navRefresh(current || 'dash');
     onScroll();
@@ -264,7 +265,10 @@
       return `<svg class="spark" viewBox="0 0 ${w} ${h}"><path d="${d}L${w},${h}L0,${h}Z" fill="color-mix(in srgb, var(--money) 12%, transparent)"/><path d="${d}" fill="none" stroke="var(--money)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
     };
 
-    const todo = db.activities.filter((a) => !a.done && daysFrom(a.due) <= 1).sort((a, b) => (a.due < b.due ? -1 : 1)).slice(0, 7);
+    // Ma journée : mes activités d'aujourd'hui (par heure), puis celles en retard.
+    const mine = db.activities.filter((a) => !a.done && a.ownerId === 1);
+    const myToday = mine.filter((a) => daysFrom(a.due) === 0).sort((a, b) => (a.time < b.time ? -1 : 1));
+    const myLate = mine.filter((a) => daysFrom(a.due) < 0).sort((a, b) => (a.due > b.due ? -1 : 1));
     const rotten = open.filter((d) => rotDays(d)).sort((a, b) => rotDays(b) - rotDays(a));
     const plVente = pipeline(prefs.pipelineId) || db.pipelines[0];
     const plOpen = open.filter((d) => d.pipelineId === plVente.id);
@@ -279,7 +283,7 @@
           <span class="pill hide-sm" data-tip="Données fictives — prototype local"><span class="dot"></span>À jour</span>
         </div>
       </div>
-      <section class="kpis">
+      <section class="kpis dash-kpis">
         <a class="card kpi" href="#affaires" data-tip="${plural(open.length, 'affaire ouverte', 'affaires ouvertes')} · ${money(openV)}">
           <div class="lbl">Pipeline ouvert <span class="ico">${I('deal')}</span></div>
           <div class="val">${moneyC(openV).replace(/ (k\$|M\$|\$)$/, '<small> $1</small>')}</div>
@@ -303,8 +307,8 @@
         </a>
       </section>
 
-      <section class="grid-2">
-        <div class="card">
+      <section class="grid-2 dash-main">
+        <div class="card dash-chart">
           <div class="card-head"><div><div class="meta">Ventes gagnées · 12 mois</div><h2 style="font-size:24px;letter-spacing:-.025em;margin-top:2px" class="num">${money(yearV)}</h2></div>
             <div class="end legend hide-sm"><span><i style="background:color-mix(in srgb,var(--money) 28%,transparent);box-shadow:inset 0 2px 0 var(--money)"></i>Gagné</span><span><i style="border:1.5px dashed var(--ink-4);background:none"></i>Mois en cours</span></div></div>
           <div class="card-body">
@@ -316,10 +320,10 @@
             </div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-head"><h2>À faire</h2><span class="meta">${late.length ? `<span class="badge danger">${late.length} en retard</span>` : ''}</span><div class="end"><a class="btn plain" href="#activites">Tout voir</a></div></div>
+        <div class="card dash-day">
+          <div class="card-head"><h2>Ma journée</h2><span class="meta num">${plural(myToday.length, 'activité')}</span><div class="end"><a class="btn plain" href="#activites">Tout voir</a></div></div>
           <div class="card-body" style="padding-top:2px">
-            <ul class="rows" id="todo">${todo.map(actRow).join('') || '<li class="empty" style="display:block"><b>Rien à faire</b>Les activités planifiées apparaissent ici.</li>'}</ul>
+            <ul class="rows" id="todo">${myToday.slice(0, 7).map(actRow).join('')}${myLate.length ? `<li class="rows-sec" aria-hidden="true">En retard · ${myLate.length}</li>${myLate.slice(0, 3).map(actRow).join('')}` : ''}${!myToday.length && !myLate.length ? `<li class="empty" style="display:block"><b>Journée libre</b><button class="btn primary" data-quick style="margin-top:12px">${I('plus')}Nouvelle affaire</button></li>` : ''}</ul>
           </div>
         </div>
       </section>
@@ -346,6 +350,7 @@
       </section>`;
 
     barChart($('#chWon'), months);
+    $$('[data-quick]', v).forEach((b) => (b.onclick = () => dealForm()));
     $('#dPl').onclick = (e) => pipelineMenu(e.currentTarget, () => render());
     bindRows(v);
   }
@@ -362,7 +367,7 @@
     return `<li data-deal="${a.dealId}" data-act="${a.id}">
       <button class="check ${a.done ? 'on' : ''}" data-done="${a.id}" aria-label="Marquer comme fait"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
       <div class="r-main"><b>${esc(a.subject)}</b><span>${ACT[a.type][1]} · ${esc(d ? org(d.orgId).name : '')}</span></div>
-      <div class="r-end ${n < 0 && !a.done ? 'late' : ''}">${rel(a.due)}<br><span style="color:var(--ink-3);font-weight:400">${a.time}</span></div>
+      <div class="r-end ${n < 0 && !a.done ? 'late' : ''}">${n === 0 ? `<span class="r-time">${a.time}</span>` : `${rel(a.due)}<br><span style="color:var(--ink-3);font-weight:400">${a.time}</span>`}</div>
     </li>`;
   }
 
@@ -781,7 +786,11 @@
       const a = db.activities.find((x) => x.id === +b.dataset.done);
       a.done = !a.done; save();
       b.classList.toggle('on', a.done);
-      if (a.done) toast('Activité terminée', () => { a.done = false; save(); render(); refreshSheet(); });
+      const d = deal(a.dealId);
+      // Plus rien de planifié sur cette affaire : proposer la suite tout de suite.
+      const needsNext = a.done && d && d.status === 'open' && !db.activities.some((x) => x.dealId === d.id && !x.done);
+      if (needsNext) setTimeout(() => nextStep(a), 280);
+      else if (a.done) toast('Activité terminée', () => { a.done = false; save(); render(); refreshSheet(); });
       setTimeout(() => { render(); refreshSheet(); }, a.done ? 450 : 0);
     }));
     root.addEventListener('click', (e) => {
@@ -1048,6 +1057,39 @@
     setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!el.contains(e.target)) { el.remove(); document.removeEventListener('pointerdown', off); } }), 0);
   }
   const opt = (arr, sel) => arr.map(([v, l]) => `<option value="${v}" ${String(v) === String(sel) ? 'selected' : ''}>${esc(l)}</option>`).join('');
+
+  // Après une activité terminée : note facultative + suivi en un tap.
+  const FOLLOW = [['Demain', 1], ['1 semaine', 7], ['2 semaines', 14], ['1 mois', 30]];
+  function nextStep(a) {
+    const d = deal(a.dealId); const o = org(d.orgId);
+    const draftKey = `note-${a.id}`;
+    const w = document.createElement('div');
+    w.innerHTML = `<div class="scrim on" style="z-index:65"></div><div class="modal-wrap"><div class="modal next-step" role="dialog" aria-modal="true" aria-labelledby="ns-h">
+      <div class="modal-h"><span class="ns-ok">${I('check')}</span><div style="flex:1;min-width:0"><h2 id="ns-h">${esc(a.subject)}</h2><div class="ns-sub">${esc(d.title)} · ${esc(o.name)}</div></div><button type="button" class="icon-btn" data-x aria-label="Fermer">${I('x')}</button></div>
+      <div class="modal-b">
+        <textarea id="ns-note" class="ns-note" rows="3" placeholder="Ce qui s’est dit (facultatif)">${esc(drafts[draftKey] || '')}</textarea>
+        <div class="ns-lbl">Planifier le suivi</div>
+        <div class="ns-grid">${FOLLOW.map(([l, n]) => `<button type="button" class="ns-chip" data-in="${n}"><b>${l}</b><span>${dShort(isoAdd(n))}</span></button>`).join('')}</div>
+      </div>
+      <div class="modal-f"><button type="button" class="btn lg" data-none>Pas de suivi</button></div></div></div>`;
+    document.body.appendChild(w);
+    const ta = $('#ns-note', w);
+    ta.oninput = () => { drafts[draftKey] = ta.value; };
+    const saveNote = () => { const t = ta.value.trim(); if (t) db.notes.push({ id: Date.now(), dealId: d.id, date: TODAY, authorId: 1, text: t }); delete drafts[draftKey]; return !!t; };
+    const close = () => { w.remove(); render(); refreshSheet(); };
+    $$('[data-in]', w).forEach((b) => (b.onclick = () => {
+      const noted = saveNote(); const due = isoAdd(+b.dataset.in);
+      const f = { id: Date.now() + 1, dealId: d.id, type: 'appel', subject: 'Suivi', due, time: a.time || '10:00', done: false, ownerId: a.ownerId };
+      db.activities.push(f); save(); close();
+      toast(`${noted ? 'Note ajoutée · ' : ''}Suivi le ${dShort(due)}`, () => { db.activities.splice(db.activities.indexOf(f), 1); save(); render(); refreshSheet(); });
+    }));
+    $('[data-none]', w).onclick = () => { const noted = saveNote(); save(); close(); toast(noted ? 'Note ajoutée' : 'Activité terminée'); };
+    // Fermer garde la note : rien de ce qui a été tapé n'est perdu.
+    $$('[data-x]', w).forEach((b) => (b.onclick = () => { const noted = saveNote(); save(); close(); if (noted) toast('Note ajoutée'); }));
+    w.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('[data-x]', w).click(); });
+    setTimeout(() => ta.focus({ preventScroll: true }), 80);
+  }
+  const drafts = {};
 
   // Ajout rapide : organisation (récentes en un tap, sinon autocomplétion), titre, valeur.
   // Pipeline = le dernier utilisé ; étape, responsable et date de clôture prennent des valeurs par défaut.

@@ -39,14 +39,11 @@ function harness(p, mobile) {
 // Chaque scénario : prépare une cible à partir des données, puis suit le chemin le plus court.
 const SCENARIOS = [
   { id: 'S1', name: 'Noter une visite et planifier le suivi dans 2 semaines', run: async (t, p) => {
-    const d = await p.evaluate(() => { const c = window.__crm; const a = c.db.activities.find((x) => !x.done && x.due === c.TODAY && x.type === 'visite') || c.db.activities.find((x) => !x.done && x.due === c.TODAY); const d = c.db.deals.find((x) => x.id === a.dealId); return { title: d.title, org: c.db.orgs.find((o) => o.id === d.orgId).name, id: d.id, act: a.id, today: c.TODAY }; });
-    await t.openDeal(d);
-    await t.fill('#noteTxt', 'Visite faite, le client attend la soumission révisée.');
-    await t.tap('#noteAdd');
-    await t.tap('#sheet [data-newact]');
-    await t.fill('#a-s', 'Suivi de la visite');
-    await t.pickDate('#a-d', plus(d.today, 14));
-    await t.tap('.modal .btn.primary');
+    // La visite est une activité d'aujourd'hui de l'utilisateur, dans « Ma journée » à l'accueil.
+    const d = await p.evaluate(() => { const c = window.__crm; const shown = [...document.querySelectorAll('#todo [data-done]')].map((b) => +b.dataset.done); const a = c.db.activities.find((x) => shown.includes(x.id) && x.due === c.TODAY && !c.db.activities.some((y) => y !== x && y.dealId === x.dealId && !y.done)); return { id: a.dealId, act: a.id, today: c.TODAY }; });
+    await t.tap(`#todo [data-done="${d.act}"]`);
+    await t.fill('#ns-note', 'Visite faite, le client attend la soumission révisée.');
+    await t.tap('.ns-chip[data-in="14"]');
     await t.expect(`(() => { const c = window.__crm; return c.db.notes.some((n) => n.dealId === ${d.id} && n.date === c.TODAY) && c.db.activities.some((a) => a.dealId === ${d.id} && !a.done && a.due === '${plus(d.today, 14)}'); })()`, 'note + suivi');
   } },
   { id: 'S2', name: 'Créer une affaire pour un CHSLD existant', run: async (t, p) => {
@@ -58,9 +55,8 @@ const SCENARIOS = [
     await t.expect(`window.__crm.db.deals.some((d) => d.title === 'Remplacement de 4 moteurs' && d.value === 18000 && d.pipelineId === 1)`, 'affaire créée');
   } },
   { id: 'S3', name: 'Voir ma journée et cocher une activité', run: async (t, p) => {
-    if (t.mobile) await t.tap('#tabbar a[data-k=activites]'); else await t.tap('.nav a[href="#activites"]');
     const before = await p.evaluate(() => window.__crm.db.activities.filter((a) => a.done).length);
-    await t.tap('[data-done]');
+    await t.tap('#todo [data-done]');
     await t.expect(`window.__crm.db.activities.filter((a) => a.done).length === ${before + 1}`, 'activité cochée');
   } },
   { id: 'S4', name: 'Passer une soumission à « À relancer »', run: async (t, p) => {
