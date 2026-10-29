@@ -105,6 +105,8 @@
     bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
     send: '<path d="M4 12 20 4l-5 16-3-7z"/><path d="m12 13 8-9"/>',
   };
+  // Logo RTM Médical (assets/logo-rtm.png ; intégré en data: URI dans la version autonome).
+  const LOGO = window.CRM_LOGO || 'assets/logo-rtm.png';
   const I = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
   const ACT = { appel: ['phone', 'Appel'], reunion: ['meet', 'Réunion'], tache: ['flag', 'Tâche'], courriel: ['mail', 'Courriel'], visite: ['pin', 'Visite'] };
 
@@ -142,10 +144,11 @@
     const themeIcon = prefs.theme === 'dark' ? 'moon' : prefs.theme === 'light' ? 'sun' : 'auto';
     app.innerHTML = `
       <aside class="side" aria-label="Navigation">
-        <div class="brand">
-          <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-          <div><b>RTM Médical</b><span>CRM</span></div>
-        </div>
+        <a class="brand" href="#accueil" aria-label="RTM Médical — accueil du CRM">
+          <img class="brand-logo" src="${LOGO}" alt="RTM Médical" width="120" height="36">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          <span class="brand-tag">CRM</span>
+        </a>
         <nav class="nav" id="nav1"></nav>
         <div class="side-label">Contacts</div>
         <nav class="nav" id="nav2"></nav>
@@ -157,6 +160,7 @@
       </aside>
       <div class="main">
         <header class="bar" id="bar">
+          <a class="bar-logo" href="#accueil" aria-label="RTM Médical — accueil"><img src="${LOGO}" alt="" width="90" height="27"></a>
           <div class="bar-title" id="barTitle"></div>
           <div class="spacer"></div>
           <label class="search" id="searchBox">${I('search')}<input id="q" type="search" placeholder="Rechercher" autocomplete="off" aria-label="Rechercher"><kbd>⌘K</kbd></label>

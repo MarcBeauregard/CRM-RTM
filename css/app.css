@@ -796,3 +796,23 @@ body[data-view='affaires'] #quickAdd, body[data-view='projets'] #quickAdd { disp
   body[data-view='affaires'] #quickAdd, body[data-view='projets'] #quickAdd { display: inline-grid; }
   #newDeal, #newProj { display: none; }
 }
+
+/* Logo RTM Médical */
+.brand { text-decoration: none; color: inherit; align-items: center; gap: 10px; padding: 4px 10px 18px; border-radius: 10px; }
+.brand-logo { display: block; height: 40px; width: auto; }
+.brand-tag { font: 600 12px/1 var(--font); letter-spacing: 0.04em; color: var(--ink-3); padding: 4px 7px; border-radius: 6px; background: var(--fill-2); margin-top: 2px; }
+.brand .brand-mark { display: none; }
+.bar-logo { display: none; }
+.bar-logo img { display: block; height: 27px; width: auto; }
+@media (max-width: 1024px) {
+  .brand { padding: 6px 0 16px; justify-content: center; }
+  .brand-logo, .brand-tag { display: none; }
+  .brand .brand-mark { display: grid; }
+}
+@media (max-width: 760px) {
+  .bar-logo { display: block; flex: none; margin-right: 6px; }
+  .bar-title { font-size: 14px; }
+}
+.bar .icon-btn { flex: none; }
+.bar-title { min-width: 0; }
+@media (max-width: 760px) { .bar-logo { padding: 8.5px 4px 8.5px 0; } }
