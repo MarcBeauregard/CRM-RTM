@@ -800,12 +800,14 @@
   }
 
   /* ———————————————————— Feuilles (inspecteur) ———————————————————— */
-  let sheetState = null;
+  let sheetState = null, lastFocus = null;
   function sheet(html, onBind) {
     let s = $('#sheet');
     if (!s) {
-      document.body.insertAdjacentHTML('beforeend', '<div class="scrim" id="scrim"></div><aside class="sheet" id="sheet" role="dialog" aria-modal="true"></aside>');
+      lastFocus = document.activeElement;
+      document.body.insertAdjacentHTML('beforeend', '<div class="scrim" id="scrim"></div><aside class="sheet" id="sheet" role="dialog" aria-modal="true" tabindex="-1"></aside>');
       s = $('#sheet');
+      setTimeout(() => { if (!s.contains(document.activeElement)) s.focus({ preventScroll: true }); }, 60);
       $('#scrim').onclick = closeSheet;
       requestAnimationFrame(() => { $('#scrim').classList.add('on'); s.classList.add('on'); });
       sheetSwipe(s);
@@ -822,6 +824,8 @@
     sheetState = null;
     s.classList.remove('on'); sc.classList.remove('on');
     setTimeout(() => { s.remove(); sc.remove(); }, 420);
+    if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
+    lastFocus = null;
   }
   function refreshSheet() { if (sheetState) { sheetState.same = true; sheetState.fn(sheetState.id); } }
   function sheetSwipe(s) {
