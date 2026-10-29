@@ -254,7 +254,7 @@
       if (p === 0) return `<span class="flat">±0 %</span>`;
       return `<span class="${p > 0 ? 'up' : 'down'}">${p > 0 ? '▲' : '▼'} ${Math.abs(p)} %</span>`;
     };
-    const ptsDelta = (c, p) => { const d = Math.round((c - p) * 100); return d === 0 ? '<span class="flat">±0 pt</span>' : `<span class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} pt${Math.abs(d) > 1 ? 's' : ''}</span>`; };
+    const ptsDelta = (c, p) => { const d = Math.round((c - p) * 100); return Math.abs(d) < 3 ? `<span class="flat">${d === 0 ? '±0' : (d > 0 ? '+' : '−') + Math.abs(d)} pt${Math.abs(d) > 1 ? 's' : ''}</span>` : d === 0 ? '<span class="flat">±0 pt</span>' : `<span class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} pt${Math.abs(d) > 1 ? 's' : ''}</span>`; };
     const spark = (vals) => {
       const max = Math.max(...vals, 1), w = 84, h = 30;
       const pts = vals.map((x, i) => [i * (w / (vals.length - 1)), h - 3 - (x / max) * (h - 6)]);
@@ -541,77 +541,79 @@
   }
 
   /* ———————————————————— Glisser-déposer (souris + tactile) ———————————————————— */
+  // Un seul jeu d'écouteurs globaux ; chaque rendu de tableau ne fait qu'enregistrer sa configuration.
+  let dragCfg = null, st = null, dropbar = null;
   function dragBoard(root, itemSel, colSel, onDrop, extra) {
-    let st = null;
-    const zone = document.createElement('div');
-    const DZ = extra ? `<div class="dropbar" style="position:fixed;left:50%;bottom:24px;transform:translate(-50%,140%);z-index:900;display:flex;gap:8px;padding:8px;border-radius:999px;background:var(--glass-thick);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--shadow-pop);transition:transform .35s var(--ease)">
-        <div class="dz" data-dz="lost" style="display:flex;align-items:center;gap:8px;height:48px;padding:0 26px;border-radius:999px;font-weight:600;color:var(--danger);background:color-mix(in srgb,var(--danger-fill) 12%,transparent);transition:transform .15s,background .15s">${I('x')}Perdue</div>
-        <div class="dz" data-dz="won" style="display:flex;align-items:center;gap:8px;height:48px;padding:0 26px;border-radius:999px;font-weight:600;color:var(--ok);background:color-mix(in srgb,var(--ok-fill) 16%,transparent);transition:transform .15s,background .15s">${I('check')}Gagnée</div>
-      </div>` : '';
-    zone.innerHTML = DZ;
-    const bar = zone.firstElementChild;
-    if (bar) document.body.appendChild(bar);
-    const cleanupOld = root._dbar; if (cleanupOld) cleanupOld.remove(); root._dbar = bar;
-
+    if (!dropbar) {
+      document.body.insertAdjacentHTML('beforeend', `<div class="dropbar" id="dropbar">
+        <div class="dz lost" data-dz="lost">${I('x')}Perdue</div>
+        <div class="dz won" data-dz="won">${I('check')}Gagnée</div></div>`);
+      dropbar = $('#dropbar');
+      window.addEventListener('pointermove', dragMove, { passive: false });
+      window.addEventListener('pointerup', dragEnd);
+      window.addEventListener('pointercancel', dragEnd);
+      document.addEventListener('touchmove', (e) => { if (st && st.started) e.preventDefault(); }, { passive: false });
+    }
+    const cfg = { root, itemSel, colSel, onDrop, extra };
     root.addEventListener('pointerdown', (e) => {
       const card = e.target.closest(itemSel);
       if (!card || e.button !== 0) return;
+      dragCfg = cfg;
       const touch = e.pointerType !== 'mouse';
       st = { card, x0: e.clientX, y0: e.clientY, started: false, touch, id: card.dataset.id, pid: e.pointerId };
-      if (touch) st.timer = setTimeout(() => { if (st && !st.cancel) begin(e.clientX, e.clientY); }, 320);
+      if (touch) st.timer = setTimeout(() => { if (st && !st.cancel) dragBegin(st.x0, st.y0); }, 320);
     });
-    const begin = (x, y) => {
-      const r = st.card.getBoundingClientRect();
-      st.started = true; st.dx = x - r.left; st.dy = y - r.top;
-      st.ghost = st.card.cloneNode(true); st.ghost.classList.add('ghost'); st.ghost.style.width = r.width + 'px';
-      document.body.appendChild(st.ghost); st.card.classList.add('dragging');
-      document.body.style.userSelect = 'none';
-      if (navigator.vibrate) navigator.vibrate(8);
-      if (bar) bar.style.transform = 'translate(-50%,0)';
-      move(x, y);
-    };
-    const move = (x, y) => {
-      st.ghost.style.left = x - st.dx + 'px'; st.ghost.style.top = y - st.dy + 'px';
-      st.ghost.style.display = 'none';
-      const under = document.elementFromPoint(x, y);
-      st.ghost.style.display = '';
-      $$(colSel, root).forEach((c) => c.classList.remove('drop'));
-      const dz = under && under.closest('[data-dz]');
-      if (bar) $$('[data-dz]', bar).forEach((z) => (z.style.transform = z === dz ? 'scale(1.08)' : ''));
-      st.over = dz ? { dz: dz.dataset.dz } : null;
-      const col = !dz && under && under.closest(colSel);
-      if (col && root.contains(col)) { col.classList.add('drop'); st.over = { col }; }
-      // défilement automatique horizontal
-      const wrap = root.parentElement; const wr = wrap.getBoundingClientRect();
-      if (x > wr.right - 60) wrap.scrollLeft += 14; else if (x < wr.left + 60) wrap.scrollLeft -= 14;
-    };
-    window.addEventListener('pointermove', (e) => {
-      if (!st || e.pointerId !== st.pid) return;
-      const dist = Math.hypot(e.clientX - st.x0, e.clientY - st.y0);
-      if (!st.started) {
-        if (st.touch) { if (dist > 8) { st.cancel = true; clearTimeout(st.timer); } return; }
-        if (dist > 5) begin(e.clientX, e.clientY); else return;
-      }
-      e.preventDefault();
-      move(e.clientX, e.clientY);
-    }, { passive: false });
-    const end = (e) => {
-      if (!st || (e && e.pointerId !== st.pid)) return;
-      clearTimeout(st.timer);
-      const s = st; st = null;
-      if (!s.started) return;
-      s.card.classList.remove('dragging'); s.ghost.remove(); document.body.style.userSelect = '';
-      $$(colSel, root).forEach((c) => c.classList.remove('drop'));
-      if (bar) bar.style.transform = 'translate(-50%,140%)';
-      root._justDragged = true; setTimeout(() => (root._justDragged = false), 50);
-      if (!s.over) return;
-      if (s.over.dz) { extra[s.over.dz](s.id); return; }
-      if (onDrop(s.id, s.over.col)) render();
-    };
-    window.addEventListener('pointerup', end);
-    window.addEventListener('pointercancel', end);
-    root.addEventListener('touchmove', (e) => { if (st && st.started) e.preventDefault(); }, { passive: false });
     root.addEventListener('contextmenu', (e) => { if (e.target.closest(itemSel)) e.preventDefault(); });
+  }
+  function dragBegin(x, y) {
+    const r = st.card.getBoundingClientRect();
+    st.started = true; st.dx = x - r.left; st.dy = y - r.top;
+    st.ghost = st.card.cloneNode(true); st.ghost.classList.add('ghost'); st.ghost.style.width = r.width + 'px';
+    document.body.appendChild(st.ghost); st.card.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    if (navigator.vibrate) navigator.vibrate(8);
+    if (dragCfg.extra) dropbar.classList.add('on');
+    $('#toast').classList.remove('on');
+    dragOver(x, y);
+  }
+  function dragOver(x, y) {
+    const { root, colSel } = dragCfg;
+    st.ghost.style.left = x - st.dx + 'px'; st.ghost.style.top = y - st.dy + 'px';
+    st.ghost.style.display = 'none';
+    const under = document.elementFromPoint(x, y);
+    st.ghost.style.display = '';
+    $$(colSel, root).forEach((c) => c.classList.remove('drop'));
+    const dz = dragCfg.extra && under && under.closest('[data-dz]');
+    $$('[data-dz]', dropbar).forEach((z) => z.classList.toggle('over', z === dz));
+    st.over = dz ? { dz: dz.dataset.dz } : null;
+    const col = !dz && under && under.closest(colSel);
+    if (col && root.contains(col)) { col.classList.add('drop'); st.over = { col }; }
+    const wrap = root.parentElement; const wr = wrap.getBoundingClientRect();
+    if (x > wr.right - 60) wrap.scrollLeft += 14; else if (x < wr.left + 60) wrap.scrollLeft -= 14;
+  }
+  function dragMove(e) {
+    if (!st || e.pointerId !== st.pid) return;
+    const dist = Math.hypot(e.clientX - st.x0, e.clientY - st.y0);
+    if (!st.started) {
+      if (st.touch) { if (dist > 8) { st.cancel = true; clearTimeout(st.timer); } return; }
+      if (dist > 5) dragBegin(e.clientX, e.clientY); else return;
+    }
+    e.preventDefault();
+    dragOver(e.clientX, e.clientY);
+  }
+  function dragEnd(e) {
+    if (!st || (e && e.pointerId !== st.pid)) return;
+    clearTimeout(st.timer);
+    const s = st; st = null;
+    if (!s.started) return;
+    const { root, colSel, onDrop, extra } = dragCfg;
+    s.card.classList.remove('dragging'); s.ghost.remove(); document.body.style.userSelect = '';
+    $$(colSel, root).forEach((c) => c.classList.remove('drop'));
+    dropbar.classList.remove('on'); $$('[data-dz]', dropbar).forEach((z) => z.classList.remove('over'));
+    root._justDragged = true; setTimeout(() => (root._justDragged = false), 50);
+    if (!s.over) return;
+    if (s.over.dz) { extra[s.over.dz](s.id); return; }
+    if (onDrop(s.id, s.over.col)) render();
   }
 
   /* ———————————————————— Projets ———————————————————— */
@@ -923,7 +925,7 @@
         <div class="group" style="margin-top:0">
           ${kv('Organisation', esc(o.name), `data-org="${o.id}"`)}
           ${d ? kv('Affaire liée', esc(d.title), `data-deal="${d.id}"`) : ''}
-          ${kv('Responsable', `<span style="display:inline-flex;gap:8px;align-items:center">${avatar(user(p.ownerId))}${esc(user(p.ownerId).name)}</span>`)}
+          ${kv('Responsable', `<span style="display:inline-flex;gap:8px;align-items:center">${avatar(user(p.ownerId))}${esc(user(p.ownerId).short)}</span>`)}
           ${kv('Début', dLong(p.start))}
           ${kv('Échéance', dLong(p.end))}
           ${kv('Valeur', money(p.value))}
@@ -963,7 +965,7 @@
           ${kv('Lits', o.lits)}
           ${kv('Lève-personnes', o.leves)}
           ${kv('Client depuis', o.clientDepuis || '—')}
-          ${kv('Responsable', esc(user(o.owner).name))}
+          ${kv('Responsable', esc(user(o.owner).short))}
         </div>
         <div class="group-h">Personnes <span class="end num">${ppl.length}</span></div>
         <div class="group" style="margin-top:0">${ppl.map((p) => kv(`<span style="display:inline-flex;gap:10px;align-items:center;color:var(--ink);font-weight:500"><span class="avatar" style="--h:${hueOf(p.name)}">${initials(p.name)}</span>${esc(p.name)}</span>`, `<span style="color:var(--ink-3);font-weight:400">${esc(p.role)}</span>`, `data-person="${p.id}"`)).join('')}</div>

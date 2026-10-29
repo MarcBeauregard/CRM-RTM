@@ -547,7 +547,7 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size
 
 /* ———————————————————————— Responsive ———————————————————————— */
 @media (min-width: 1800px) {
-  .content { max-width: 1840px; }
+  .content { max-width: 2040px; }
 }
 @media (max-width: 1240px) {
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -635,3 +635,19 @@ a.card:active { transform: scale(0.99); }
 @media (max-width: 760px) { .tbl .ell { max-width: 52vw !important; } }
 @media (max-width: 760px) { .tbl .who .ell { max-width: 46vw !important; } }
 @media (max-width: 760px) { .tbl th, .tbl td { padding-left: 10px; padding-right: 10px; } .tbl th:first-child, .tbl td:first-child { padding-left: 16px; } .tbl th:last-child, .tbl td:last-child { padding-right: 16px; } }
+
+/* Zone Gagnée / Perdue pendant le glisser */
+.dropbar {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 160%); z-index: 900; display: flex; gap: 8px; padding: 8px;
+  border-radius: 999px; background: var(--glass-thick); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-pop); transition: transform 0.4s var(--ease);
+}
+.dropbar.on { transform: translate(-50%, 0); }
+.dz { display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 30px; border-radius: 999px; font-size: 15px; font-weight: 600; transition: transform 0.2s var(--spring), background 0.15s, color 0.15s; }
+.dz svg.i { stroke-width: 2.4; }
+.dz.lost { color: var(--danger); background: color-mix(in srgb, var(--danger-fill) 12%, transparent); }
+.dz.won { color: var(--ok); background: color-mix(in srgb, var(--ok-fill) 16%, transparent); }
+.dz.over { transform: scale(1.08); color: #fff; }
+.dz.lost.over { background: var(--danger-fill); }
+.dz.won.over { background: var(--ok-fill); }
+@media (max-width: 760px) { .dropbar { bottom: calc(84px + env(safe-area-inset-bottom)); } .dz { padding: 0 24px; } }
