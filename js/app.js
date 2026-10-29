@@ -127,14 +127,14 @@
   const app = $('#app');
 
   const NAV = [
-    { h: '#/', k: 'dash', l: 'Tableau de bord', i: 'dash' },
-    { h: '#/affaires', k: 'affaires', l: 'Affaires', i: 'deal', c: () => db.deals.filter((d) => d.status === 'open').length },
-    { h: '#/projets', k: 'projets', l: 'Projets', i: 'proj', c: () => db.projects.filter((p) => p.status === 'open').length },
-    { h: '#/activites', k: 'activites', l: 'Activités', i: 'cal', c: () => db.activities.filter((a) => !a.done && daysFrom(a.due) <= 0).length },
+    { h: '#accueil', k: 'dash', l: 'Tableau de bord', i: 'dash' },
+    { h: '#affaires', k: 'affaires', l: 'Affaires', i: 'deal', c: () => db.deals.filter((d) => d.status === 'open').length },
+    { h: '#projets', k: 'projets', l: 'Projets', i: 'proj', c: () => db.projects.filter((p) => p.status === 'open').length },
+    { h: '#activites', k: 'activites', l: 'Activités', i: 'cal', c: () => db.activities.filter((a) => !a.done && daysFrom(a.due) <= 0).length },
   ];
   const NAV2 = [
-    { h: '#/organisations', k: 'organisations', l: 'Organisations', i: 'org', c: () => db.orgs.length },
-    { h: '#/personnes', k: 'personnes', l: 'Personnes', i: 'person', c: () => db.persons.length },
+    { h: '#organisations', k: 'organisations', l: 'Organisations', i: 'org', c: () => db.orgs.length },
+    { h: '#personnes', k: 'personnes', l: 'Personnes', i: 'person', c: () => db.persons.length },
   ];
 
   function shell() {
@@ -195,11 +195,11 @@
   }
 
   /* ———————————————————— Routeur ———————————————————— */
-  const routes = { '': viewDash, affaires: viewDeals, projets: viewProjects, activites: viewActivities, organisations: viewOrgs, personnes: viewPersons };
+  const routes = { '': viewDash, accueil: viewDash, affaires: viewDeals, projets: viewProjects, activites: viewActivities, organisations: viewOrgs, personnes: viewPersons };
   let current = '';
   function route() {
     const h = location.hash.replace(/^#\/?/, '').split('?')[0];
-    const k = routes[h] ? h : '';
+    const k = routes[h] && h !== 'accueil' ? h : '';
     const changed = k !== current;
     current = k;
     navRefresh(k || 'dash');
@@ -278,7 +278,7 @@
         </div>
       </div>
       <section class="kpis">
-        <a class="card kpi" href="#/affaires" data-tip="${plural(open.length, 'affaire ouverte', 'affaires ouvertes')} · ${money(openV)}">
+        <a class="card kpi" href="#affaires" data-tip="${plural(open.length, 'affaire ouverte', 'affaires ouvertes')} · ${money(openV)}">
           <div class="lbl">Pipeline ouvert <span class="ico">${I('deal')}</span></div>
           <div class="val">${moneyC(openV).replace(/ (k\$|M\$|\$)$/, '<small> $1</small>')}</div>
           <div class="delta">${plural(open.length, 'affaire')}<span class="hide-sm">· +${newOpen30.length} en 30 j</span></div>
@@ -294,7 +294,7 @@
           <div class="val">${Math.round(conv * 100)}<small> %</small></div>
           <div class="delta">${ptsDelta(conv, convP)} vs 90 j préc.</div>
         </div>
-        <a class="card kpi" href="#/activites" data-tip="Activités planifiées non faites">
+        <a class="card kpi" href="#activites" data-tip="Activités planifiées non faites">
           <div class="lbl">Activités en retard <span class="ico" style="${late.length ? 'background:color-mix(in srgb,var(--danger-fill) 12%,transparent);color:var(--danger)' : ''}">${I('clock')}</span></div>
           <div class="val" style="${late.length ? 'color:var(--danger)' : ''}">${late.length}</div>
           <div class="delta">${todayActs.length} aujourd’hui</div>
@@ -315,7 +315,7 @@
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><h2>À faire</h2><span class="meta">${late.length ? `<span class="badge danger">${late.length} en retard</span>` : ''}</span><div class="end"><a class="btn plain" href="#/activites">Tout voir</a></div></div>
+          <div class="card-head"><h2>À faire</h2><span class="meta">${late.length ? `<span class="badge danger">${late.length} en retard</span>` : ''}</span><div class="end"><a class="btn plain" href="#activites">Tout voir</a></div></div>
           <div class="card-body" style="padding-top:2px">
             <ul class="rows" id="todo">${todo.map(actRow).join('') || '<li class="empty" style="display:block"><b>Rien à faire</b>Les activités planifiées apparaissent ici.</li>'}</ul>
           </div>
@@ -326,7 +326,7 @@
         <div class="card">
           <div class="card-head"><h2>Pipeline</h2><div class="end"><button class="pill" id="dPl" style="height:28px;font-size:13px">${esc(plVente.name)} ${I('down', 'chev')}</button></div></div>
           <div class="card-body"><ul class="rank">
-            ${plVente.stages.map((s) => { const ds = plOpen.filter((d) => d.stageId === s.id); const val = sum(ds, (d) => d.value); return `<li data-href="#/affaires" data-tip="${esc(s.name)} · ${plural(ds.length, 'affaire')} · ${money(val)}"><span class="rk-name">${esc(s.name)}</span><span class="rk-n">${ds.length}</span><span class="rk-v">${moneyC(val)}</span><span class="track"><i style="width:${(val / plMax) * 100}%"></i></span></li>`; }).join('')}
+            ${plVente.stages.map((s) => { const ds = plOpen.filter((d) => d.stageId === s.id); const val = sum(ds, (d) => d.value); return `<li data-href="#affaires" data-tip="${esc(s.name)} · ${plural(ds.length, 'affaire')} · ${money(val)}"><span class="rk-name">${esc(s.name)}</span><span class="rk-n">${ds.length}</span><span class="rk-v">${moneyC(val)}</span><span class="track"><i style="width:${(val / plMax) * 100}%"></i></span></li>`; }).join('')}
           </ul></div>
         </div>
         <div class="card">
@@ -336,7 +336,7 @@
           </ul></div>
         </div>
         <div class="card">
-          <div class="card-head"><h2>Projets en cours</h2><div class="end"><a class="btn plain" href="#/projets">Tout voir</a></div></div>
+          <div class="card-head"><h2>Projets en cours</h2><div class="end"><a class="btn plain" href="#projets">Tout voir</a></div></div>
           <div class="card-body" style="padding-top:2px"><ul class="rows">
             ${projs.map((p) => { const pr = progress(p); const ln = daysFrom(p.end) < 0; return `<li data-proj="${p.id}">${ringSvg(pr.r, 32)}<div class="r-main"><b>${esc(p.title)}</b><span>${esc(board(p.boardId).phases.find((f) => f.id === p.phaseId).name)} · ${pr.n}/${pr.N} tâches</span></div><div class="r-end ${ln ? 'late' : ''}">${ln ? 'En retard' : rel(p.end)}</div></li>`; }).join('')}
           </ul></div>
@@ -742,7 +742,7 @@
   let sortOrgs = { k: 'openV', dir: -1 };
   function contactsHead(k) {
     return `<div class="page-head"><div><h1>${k === 'organisations' ? 'Organisations' : 'Personnes'}</h1><div class="sub">${k === 'organisations' ? plural(db.orgs.length, 'établissement') : plural(db.persons.length, 'contact')}</div></div>
-      <div class="tools"><div class="seg mobile-only"><button aria-pressed="${k === 'organisations'}" data-h="#/organisations">Organisations</button><button aria-pressed="${k === 'personnes'}" data-h="#/personnes">Personnes</button></div>
+      <div class="tools"><div class="seg mobile-only"><button aria-pressed="${k === 'organisations'}" data-h="#organisations">Organisations</button><button aria-pressed="${k === 'personnes'}" data-h="#personnes">Personnes</button></div>
       <span class="badge accent hide-sm" style="height:28px;padding:0 12px" data-tip="Code client Acomba affiché sur chaque fiche — synchronisation prévue">${I('sync')}Prêt pour Acomba</span></div></div>`;
   }
   function viewOrgs() {
@@ -847,7 +847,7 @@
     sheet(`${sheetTop(`${esc(pl.name)} › ${esc(stageOf(d).name)}`)}
       <div class="sheet-scroll">
         <h2>${esc(d.title)}</h2>
-        <div class="lead"><a href="javascript:void 0" data-org="${o.id}">${esc(o.name)}</a>${p ? ` · <a href="javascript:void 0" data-person="${p.id}">${esc(p.name)}</a>` : ''}</div>
+        <div class="lead"><span class="lnk" role="link" tabindex="0" data-org="${o.id}">${esc(o.name)}</span>${p ? ` · <span class="lnk" role="link" tabindex="0" data-person="${p.id}">${esc(p.name)}</span>` : ''}</div>
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><div class="bigval">${money(d.value)}</div>${statusBadge}${d.labels.map((l) => `<span class="badge ${l === 'Chaud' ? 'warn' : 'purple'}">${esc(l)}</span>`).join('')}</div>
         <div class="stagebar" role="group" aria-label="Étapes">${pl.stages.map((s, i) => `<button class="${i < idx ? 'on' : i === idx ? 'cur' : ''}" data-stage="${s.id}" data-tip="${esc(s.name)}" ${d.status !== 'open' ? 'disabled' : ''}>${esc(s.name)}</button>`).join('')}</div>
         <div class="stagebar-lbl"><span>Étape ${idx + 1} sur ${pl.stages.length} · <b>${esc(stageOf(d).name)}</b></span><span>${since === 0 ? 'Depuis aujourd’hui' : `Depuis ${since} j`}</span></div>
@@ -912,7 +912,7 @@
     sheet(`${sheetTop(`${esc(b.name)} › ${esc(b.phases[phIdx].name)}`)}
       <div class="sheet-scroll">
         <h2>${esc(projName(p))}</h2>
-        <div class="lead"><a href="javascript:void 0" data-org="${o.id}">${esc(o.name)}</a></div>
+        <div class="lead"><span class="lnk" role="link" tabindex="0" data-org="${o.id}">${esc(o.name)}</span></div>
         <div style="display:flex;align-items:center;gap:14px;margin-top:18px">
           ${ringSvg(pr.r, 52)}
           <div><div style="font:600 24px/1.2 var(--font-display);letter-spacing:-.02em" class="num">${Math.round(pr.r * 100)} %</div><div style="color:var(--ink-3);font-size:13px">${pr.n} sur ${pr.N} tâches</div></div>

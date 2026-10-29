@@ -651,3 +651,5 @@ a.card:active { transform: scale(0.99); }
 .dz.lost.over { background: var(--danger-fill); }
 .dz.won.over { background: var(--ok-fill); }
 @media (max-width: 760px) { .dropbar { bottom: calc(84px + env(safe-area-inset-bottom)); } .dz { padding: 0 24px; } }
+.lnk { color: var(--accent-ink); cursor: pointer; }
+.lnk:hover { text-decoration: underline; text-underline-offset: 3px; }
