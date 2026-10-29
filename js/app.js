@@ -303,7 +303,7 @@
         <a class="card kpi" href="#activites" data-tip="Activités planifiées non faites">
           <div class="lbl">Activités en retard <span class="ico" style="${late.length ? 'background:color-mix(in srgb,var(--danger-fill) 12%,transparent);color:var(--danger)' : ''}">${I('clock')}</span></div>
           <div class="val" style="${late.length ? 'color:var(--danger)' : ''}">${late.length}</div>
-          <div class="delta">${todayActs.length} aujourd’hui</div>
+          <div class="delta">Équipe · ${todayActs.length} aujourd’hui</div>
         </a>
       </section>
 

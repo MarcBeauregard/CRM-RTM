@@ -33,9 +33,9 @@ Interactions / champs / écrans. « Avant » = prototype du 29 oct. avant cette 
 
 | # | Avant | Après | Changement |
 |---|---|---|---|
-| S1 | 8 / 3 / 4 | 8 / 3 / 4 | — (prochaine itération) |
+| S1 | 8 / 3 / 4 | **2** / 1 / 2 | « Ma journée » à l'accueil + suite proposée en cochant : note et suivi (demain, 1 sem., 2 sem., 1 mois) en un tap |
 | S2 | 5 / 2 / 3 | **3** / 3 / 2 | Ajout rapide : bouton + toujours visible, établissements récents, autocomplétion, valeurs par défaut |
-| S3 | 2 / 0 / 1 | 2 / 0 / 1 | — |
+| S3 | 2 / 0 / 1 | **1** / 0 / 1 | « Ma journée » en tête de l'accueil sur iPhone : mes activités du jour par heure, puis en retard |
 | S4 | 3 / 1 / 2 | 3 / 1 / 2 | — |
 | S5 | 3 / 1 / 3 | 3 / 1 / 3 | — |
 | S6 | 4 / 1 / 2 | 4 / 1 / 2 | — |
@@ -45,6 +45,8 @@ Interactions / champs / écrans. « Avant » = prototype du 29 oct. avant cette 
 Sur ordinateur (1440 px), les chiffres sont identiques, à un écran près : la recherche s'ouvre en menu plutôt qu'en feuille.
 
 ## Notes
+
+- **Suite proposée** : elle n'apparaît que si l'affaire n'a plus rien de planifié, pour ne pas ralentir les simples cochages. Fermer la feuille garde la note tapée.
 
 - **S8 et la mémoire du pipeline** : 3 interactions une fois que l'appareil a mémorisé « Terrain ». La toute première fois, il faut 1 tap de plus pour le choisir.
 - **Recherche** : chaque mot tapé doit se retrouver dans le titre, l'organisation ou la ville (« érables rails »). Chaque résultat d'affaire affiche son établissement, puisque plusieurs affaires portent le même titre.
