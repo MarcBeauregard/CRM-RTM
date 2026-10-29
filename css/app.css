@@ -761,3 +761,11 @@ svg.i.flip { transform: scaleX(-1); }
 .ns-chip span { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 @media (max-width: 760px) { .ns-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .r-time { font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.ns-out { display: flex; align-items: center; gap: 8px; margin-top: 20px; padding-top: 14px; border-top: 0.5px solid var(--sep); }
+.ns-out .ns-lbl { flex: 1; }
+.ns-out[hidden], .ns-reasons[hidden] { display: none; }
+.ns-reasons .chips { margin: 0; }
+.ns-reasons .chip { height: 40px; }
+.toast { max-width: calc(100vw - 32px); white-space: nowrap; }
+.toast > span:not(.ti) { overflow: hidden; text-overflow: ellipsis; min-width: 0; }

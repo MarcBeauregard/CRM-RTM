@@ -72,6 +72,14 @@ const SCENARIOS = [
     await t.expect(`document.querySelector('#sheet').textContent.includes('${x.tel}')`, 'téléphone visible');
   } },
   { id: 'S6', name: 'Marquer une affaire perdue avec la raison', run: async (t, p) => {
+    // Le client annonce la perte pendant l'appel prévu aujourd'hui : on coche l'appel dans « Ma journée ».
+    const d = await p.evaluate(() => { const c = window.__crm; const shown = [...document.querySelectorAll('#todo [data-done]')].map((b) => +b.dataset.done); const a = c.db.activities.find((x) => shown.includes(x.id) && x.due === c.TODAY && !c.db.activities.some((y) => y !== x && y.dealId === x.dealId && !y.done)); return { id: a.dealId, act: a.id }; });
+    await t.tap(`#todo [data-done="${d.act}"]`);
+    await t.tap('.next-step [data-lost]');
+    await t.tap('.next-step [data-reason="Budget reporté"]');
+    await t.expect(`(() => { const d = window.__crm.db.deals.find((d) => d.id === ${d.id}); return d.status === 'lost' && d.lostReason === 'Budget reporté'; })()`, 'perdue + raison');
+  } },
+  { id: 'S6b', name: 'Variante : perdue avec raison depuis la recherche', run: async (t, p) => {
     const d = await p.evaluate(() => { const c = window.__crm; const d = c.db.deals.find((x) => x.status === 'open' && x.pipelineId === 7); return { id: d.id, title: d.title, org: c.db.orgs.find((o) => o.id === d.orgId).name }; });
     await t.openDeal(d);
     await t.tap('#sheet [data-st=lost]');
@@ -79,13 +87,10 @@ const SCENARIOS = [
     await t.expect(`(() => { const d = window.__crm.db.deals.find((d) => d.id === ${d.id}); return d.status === 'lost' && d.lostReason === 'Budget reporté'; })()`, 'perdue + raison');
   } },
   { id: 'S7', name: 'Convertir une affaire gagnée en projet', run: async (t, p) => {
-    const d = await p.evaluate(() => { const c = window.__crm; const d = c.db.deals.filter((x) => x.status === 'won' && !c.db.projects.some((p) => p.dealId === x.id)).sort((a, b) => (a.closeDate > b.closeDate ? -1 : 1))[0]; return { id: d.id, title: d.title }; });
-    if (t.mobile) await t.tap('#tabbar a[data-k=projets]'); else await t.tap('.nav a[href="#projets"]');
-    await t.tap('#newProj');
-    await t.fill('#p-t', 'Installation');
-    t.m.taps += 2; await p.selectOption('#p-d', String(d.id));
-    await t.tap('.modal .btn.primary');
-    await t.expect(`window.__crm.db.projects.some((p) => p.dealId === ${d.id})`, 'projet créé');
+    const d = await p.evaluate(() => { const c = window.__crm; const d = c.db.deals.filter((x) => x.status === 'won' && !c.db.projects.some((p) => p.dealId === x.id)).sort((a, b) => (a.closeDate > b.closeDate ? -1 : 1))[0]; return { id: d.id, title: d.title, org: c.db.orgs.find((o) => o.id === d.orgId).name }; });
+    await t.search(`${d.org.split(' ').slice(-2).join(' ')} ${d.title.split(' ').slice(0, 2).join(' ')}`, [d.title, `${d.org} · gagnée`]);
+    await t.tap('#sheet [data-mkproj]');
+    await t.expect(`(() => { const p = window.__crm.db.projects.find((p) => p.dealId === ${d.id}); return p && p.tasks.length > 5; })()`, 'projet créé avec tâches');
   } },
   { id: 'S8', name: 'Un technicien signale un rail endommagé', prefs: { lastPipeline: 10 }, run: async (t, p) => {
     // Appareil d'un technicien : le pipeline « Opportunités terrain » est mémorisé depuis son dernier signalement.

@@ -206,6 +206,7 @@
     current = k;
     navRefresh(k || 'dash');
     closePop();
+    if (changed) closeSheet();
     render();
     if (changed) window.scrollTo(0, 0);
   }
@@ -543,8 +544,26 @@
     d.closeDate = status === 'open' ? null : TODAY;
     d.lostReason = status === 'lost' ? reason || 'Non précisée' : null;
     save();
-    toast(status === 'won' ? `Affaire gagnée · ${money(d.value)}` : status === 'lost' ? 'Affaire marquée perdue' : 'Affaire rouverte', () => { Object.assign(d, prev); save(); render(); refreshSheet(); }, status === 'won');
+    const hasProj = db.projects.some((p) => p.dealId === d.id);
+    toast(status === 'won' ? `Affaire gagnée · ${money(d.value)}` : status === 'lost' ? `Perdue · ${d.lostReason}` : 'Affaire rouverte', () => { Object.assign(d, prev); save(); render(); refreshSheet(); }, status === 'won',
+      status === 'won' && !hasProj ? { l: 'Créer le projet', fn: () => projectFromDeal(d) } : null);
     render(); refreshSheet();
+  }
+
+  // Affaire gagnée → projet : tableau selon le type de travail, première phase, liste de tâches standard.
+  const PROJ_TASKS = {
+    1: ['Confirmer la date avec le client', 'Relevé des plafonds', 'Plans d’installation', 'Commande des rails', 'Commande des moteurs', 'Réception du matériel', 'Installation des rails', 'Installation des moteurs', 'Test de charge 150 %', 'Formation du personnel', 'Remise du rapport de conformité'],
+    2: ['Planifier la visite', 'Confirmer l’accès aux chambres', 'Inspection des moteurs', 'Inspection des toiles', 'Test de charge', 'Saisir les non-conformités', 'Produire le rapport PDF', 'Envoyer la facture'],
+  };
+  function projectFromDeal(d) {
+    const existing = db.projects.find((p) => p.dealId === d.id);
+    if (existing) return openProject(existing.id);
+    const b = board(d.pipelineId === 9 ? 2 : 1);
+    const span = b.id === 1 ? 45 : 21;
+    const tasks = PROJ_TASKS[b.id].map((t, k, all) => ({ id: Date.now() + k, title: t, done: false, due: isoAdd(Math.round(((k + 1) / all.length) * span)), assigneeId: d.ownerId }));
+    const p = { id: Math.max(...db.projects.map((x) => x.id)) + 1, title: `${org(d.orgId).name} — ${d.title}`, boardId: b.id, phaseId: b.phases[0].id, orgId: d.orgId, dealId: d.id, ownerId: d.ownerId, start: TODAY, end: isoAdd(span), status: 'open', health: 'ok', value: d.value, labels: [], tasks };
+    db.projects.push(p); save(); render(); refreshSheet();
+    toast(`Projet créé · ${b.name}`, () => { db.projects.splice(db.projects.indexOf(p), 1); save(); render(); refreshSheet(); }, false, { l: 'Ouvrir', fn: () => openProject(p.id) });
   }
 
   /* ———————————————————— Glisser-déposer (souris + tactile) ———————————————————— */
@@ -867,7 +886,7 @@
         <div class="stagebar" role="group" aria-label="Étapes">${pl.stages.map((s, i) => `<button class="${i < idx ? 'on' : i === idx ? 'cur' : ''}" data-stage="${s.id}" data-tip="${esc(s.name)}" ${d.status !== 'open' ? 'disabled' : ''}>${esc(s.name)}</button>`).join('')}</div>
         <div class="stagebar-lbl"><span>Étape ${idx + 1} sur ${pl.stages.length} · <b>${esc(stageOf(d).name)}</b></span><span>${since === 0 ? 'Depuis aujourd’hui' : `Depuis ${since} j`}</span></div>
         <div class="actions">
-          ${d.status === 'open' ? `<button class="btn ok lg" data-st="won">${I('check')}Gagnée</button><button class="btn danger lg" data-st="lost">${I('x')}Perdue</button>` : `<button class="btn lg" data-st="open">${I('undo')}Rouvrir</button>`}
+          ${d.status === 'open' ? `<button class="btn ok lg" data-st="won">${I('check')}Gagnée</button><button class="btn danger lg" data-st="lost">${I('x')}Perdue</button>` : `${d.status === 'won' && !proj.length ? `<button class="btn primary lg" data-mkproj>${I('proj')}Créer le projet</button>` : ''}<button class="btn lg" data-st="open">${I('undo')}Rouvrir</button>`}
           <button class="btn lg" data-newact>${I('cal')}Planifier</button>
         </div>
 
@@ -905,6 +924,7 @@
         else setStatus(d, b.dataset.st);
       }));
       $$('[data-newact]', s).forEach((b) => (b.onclick = () => activityForm(d)));
+      $$('[data-mkproj]', s).forEach((b) => (b.onclick = () => projectFromDeal(d)));
       $('#noteAdd', s).onclick = () => {
         const t = $('#noteTxt', s).value.trim(); if (!t) return;
         db.notes.push({ id: Date.now(), dealId: d.id, date: TODAY, authorId: 1, text: t }); save(); refreshSheet(); toast('Note ajoutée');
@@ -914,8 +934,9 @@
     });
   }
 
+  const LOST_REASONS = ['Prix trop élevé', 'Compétiteur choisi', 'Budget reporté', 'Aucune réponse', 'Projet annulé'];
   function lostReason(anchor, cb) {
-    menu(anchor, ['Prix trop élevé', 'Compétiteur choisi', 'Budget reporté', 'Aucune réponse', 'Projet annulé'].map((r) => ({ l: r, fn: () => cb(r) })), 'Raison de la perte');
+    menu(anchor, LOST_REASONS.map((r) => ({ l: r, fn: () => cb(r) })), 'Raison de la perte');
   }
 
   function openProject(id) {
@@ -1070,6 +1091,8 @@
         <textarea id="ns-note" class="ns-note" rows="3" placeholder="Ce qui s’est dit (facultatif)">${esc(drafts[draftKey] || '')}</textarea>
         <div class="ns-lbl">Planifier le suivi</div>
         <div class="ns-grid">${FOLLOW.map(([l, n]) => `<button type="button" class="ns-chip" data-in="${n}"><b>${l}</b><span>${dShort(isoAdd(n))}</span></button>`).join('')}</div>
+        <div class="ns-out" id="ns-out"><span class="ns-lbl" style="margin:0">Ou clore l’affaire</span><button type="button" class="btn ok" data-won>${I('check')}Gagnée</button><button type="button" class="btn danger" data-lost>${I('x')}Perdue</button></div>
+        <div class="ns-reasons" id="ns-reasons" hidden><div class="ns-lbl">Raison de la perte</div><div class="chips">${LOST_REASONS.map((r) => `<button type="button" class="chip" data-reason="${esc(r)}">${esc(r)}</button>`).join('')}</div></div>
       </div>
       <div class="modal-f"><button type="button" class="btn lg" data-none>Pas de suivi</button></div></div></div>`;
     document.body.appendChild(w);
@@ -1083,6 +1106,9 @@
       db.activities.push(f); save(); close();
       toast(`${noted ? 'Note ajoutée · ' : ''}Suivi le ${dShort(due)}`, () => { db.activities.splice(db.activities.indexOf(f), 1); save(); render(); refreshSheet(); });
     }));
+    $('[data-won]', w).onclick = () => { saveNote(); w.remove(); setStatus(d, 'won'); };
+    $('[data-lost]', w).onclick = () => { $('#ns-reasons', w).hidden = false; $('#ns-out', w).hidden = true; $('[data-reason]', w).focus(); };
+    $$('[data-reason]', w).forEach((b) => (b.onclick = () => { saveNote(); w.remove(); setStatus(d, 'lost', b.dataset.reason); }));
     $('[data-none]', w).onclick = () => { const noted = saveNote(); save(); close(); toast(noted ? 'Note ajoutée' : 'Activité terminée'); };
     // Fermer garde la note : rien de ce qui a été tapé n'est perdu.
     $$('[data-x]', w).forEach((b) => (b.onclick = () => { const noted = saveNote(); save(); close(); if (noted) toast('Note ajoutée'); }));

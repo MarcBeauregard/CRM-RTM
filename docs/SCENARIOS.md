@@ -11,7 +11,8 @@ d'un de ces scénarios réels, mesuré par `scripts/scenarios.js` (Playwright).
 - **Objectif** : 3 interactions ou moins sur iPhone (390 px).
 
 ```bash
-node scripts/scenarios.js docs/mesures-apres.json
+node scripts/scenarios.js docs/mesures-apres.json   # les 8 scénarios
+node scripts/interactions.js                         # glisser-déposer, fiches, clavier
 ```
 
 ## Les 8 scénarios
@@ -38,14 +39,15 @@ Interactions / champs / écrans. « Avant » = prototype du 29 oct. avant cette 
 | S3 | 2 / 0 / 1 | **1** / 0 / 1 | « Ma journée » en tête de l'accueil sur iPhone : mes activités du jour par heure, puis en retard |
 | S4 | 3 / 1 / 2 | 3 / 1 / 2 | — |
 | S5 | 3 / 1 / 3 | 3 / 1 / 3 | — |
-| S6 | 4 / 1 / 2 | 4 / 1 / 2 | — |
-| S7 | 5 / 1 / 2 **bloqué** | 5 / 1 / 3 | Bug corrigé : le bouton « Créer » sortait de l'écran sur iPhone |
+| S6 | 4 / 1 / 2 | **3** / 0 / 2 | Après l'appel, cocher l'activité propose aussi « Gagnée / Perdue » ; les raisons s'affichent dans la même feuille |
+| S7 | 5 / 1 / 2 **bloqué** | **3** / 1 / 2 | Bouton « Créer le projet » sur l'affaire gagnée (et dans la confirmation « Affaire gagnée ») : bon tableau, première phase, liste de tâches standard. Bug iPhone du formulaire corrigé |
 | S8 | 7 / 1 / 3 | **3** / 2 / 2 | Ajout rapide + pipeline mémorisé (« Terrain » pour un technicien) |
 
 Sur ordinateur (1440 px), les chiffres sont identiques, à un écran près : la recherche s'ouvre en menu plutôt qu'en feuille.
 
 ## Notes
 
+- **S6 depuis la recherche** : 4 interactions (rechercher, ouvrir, Perdue, raison). La raison est obligatoire et la fiche doit être ouverte : on ne descend pas sous 4 par ce chemin. Le chemin naturel (le client l'annonce pendant l'appel prévu) en prend 3.
 - **Suite proposée** : elle n'apparaît que si l'affaire n'a plus rien de planifié, pour ne pas ralentir les simples cochages. Fermer la feuille garde la note tapée.
 
 - **S8 et la mémoire du pipeline** : 3 interactions une fois que l'appareil a mémorisé « Terrain ». La toute première fois, il faut 1 tap de plus pour le choisir.
