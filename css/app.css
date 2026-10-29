@@ -689,3 +689,43 @@ svg.i.flip { transform: scaleX(-1); }
 .g-bar.risque i { background: color-mix(in srgb, var(--danger-fill) 40%, var(--surface)); }
 .g-name { box-shadow: 0.5px 0 0 var(--sep); }
 .sheet:focus { outline: 0; }
+
+/* Résultats sur deux lignes : titre + contexte */
+.pop button.m:has(small) { height: auto; min-height: 44px; padding-block: 6px; }
+.m-lbl small { display: block; font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+.pop button.m:hover .m-lbl small { color: color-mix(in srgb, var(--on-accent) 80%, transparent); }
+#q2r .m-lbl { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Modale : jamais plus large que l'écran (bug des longues options sur iPhone) */
+.modal-wrap { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.modal { min-width: 0; max-width: 100%; }
+.field input, .field select, .datefield { width: 100%; min-width: 0; text-overflow: ellipsis; }
+
+/* Ajout rapide */
+.add-btn { background: var(--accent); color: var(--on-accent); }
+.add-btn:hover { background: color-mix(in srgb, var(--accent) 88%, #000); color: var(--on-accent); }
+.add-btn svg.i { stroke-width: 2.2; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.chip { height: 32px; padding: 0 13px; border-radius: 999px; background: var(--fill); font-size: 13.5px; font-weight: 500; white-space: nowrap; transition: background 0.15s, color 0.15s, transform 0.12s; }
+.chip:hover { background: var(--fill-strong); }
+.chip:active { transform: scale(0.96); }
+.chip[aria-pressed='true'] { background: var(--accent); color: var(--on-accent); }
+.chip.sm { height: 28px; padding: 0 11px; font-size: 12.5px; color: var(--ink-2); }
+.chips.hints { margin: 8px 0 0; }
+.org-pick { border-radius: 12px; background: var(--surface-2); overflow: hidden; transition: box-shadow 0.15s; }
+.org-pick.need { box-shadow: 0 0 0 1.5px var(--danger-fill); }
+.org-pick:focus-within { box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 0 0.5px var(--accent); }
+.org-pick input { background: none !important; box-shadow: none !important; }
+.opt-list:empty { display: none; }
+.opt-list { border-top: 0.5px solid var(--sep); padding: 4px; max-height: 240px; overflow-y: auto; }
+.opt-list .m-sec { font-size: 12px; font-weight: 600; color: var(--ink-3); padding: 6px 8px 2px; }
+.opt-row, .org-chosen { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 8px; border-radius: 9px; text-align: left; font-size: 14.5px; font-weight: 500; }
+.opt-row:hover { background: var(--fill-2); }
+.opt-row .m-lbl, .org-chosen .m-lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.org-chosen { padding: 6px 6px 6px 10px; }
+.opt-empty { padding: 12px 10px; color: var(--ink-3); font-size: 13.5px; }
+@media (max-width: 760px) { .chip { height: 36px; } .opt-row { min-height: 52px; } }
+.org-chosen[hidden], .org-pick input[hidden] { display: none; }
+.qa-seg { display: flex; margin-bottom: 16px; }
+.qa-seg button { flex: 1 1 0; justify-content: center; padding: 0 6px; }
+@media (max-width: 760px) { .qa-seg button { height: 32px; font-size: 12.5px; } }

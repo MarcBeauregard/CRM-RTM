@@ -1,0 +1,134 @@
+{
+  "iPhone": {
+    "S1": {
+      "name": "Noter une visite et planifier le suivi dans 2 semaines",
+      "taps": 8,
+      "fields": 3,
+      "screens": 4,
+      "ok": true,
+      "err": ""
+    },
+    "S2": {
+      "name": "Créer une affaire pour un CHSLD existant",
+      "taps": 3,
+      "fields": 3,
+      "screens": 2,
+      "ok": true,
+      "err": ""
+    },
+    "S3": {
+      "name": "Voir ma journée et cocher une activité",
+      "taps": 2,
+      "fields": 0,
+      "screens": 1,
+      "ok": true,
+      "err": ""
+    },
+    "S4": {
+      "name": "Passer une soumission à « À relancer »",
+      "taps": 3,
+      "fields": 1,
+      "screens": 2,
+      "ok": true,
+      "err": ""
+    },
+    "S5": {
+      "name": "Trouver le téléphone de l’acheteuse d’un établissement",
+      "taps": 3,
+      "fields": 1,
+      "screens": 3,
+      "ok": true,
+      "err": ""
+    },
+    "S6": {
+      "name": "Marquer une affaire perdue avec la raison",
+      "taps": 4,
+      "fields": 1,
+      "screens": 2,
+      "ok": true,
+      "err": ""
+    },
+    "S7": {
+      "name": "Convertir une affaire gagnée en projet",
+      "taps": 5,
+      "fields": 1,
+      "screens": 3,
+      "ok": true,
+      "err": ""
+    },
+    "S8": {
+      "name": "Un technicien signale un rail endommagé",
+      "taps": 3,
+      "fields": 2,
+      "screens": 2,
+      "ok": true,
+      "err": ""
+    }
+  },
+  "Ordinateur": {
+    "S1": {
+      "name": "Noter une visite et planifier le suivi dans 2 semaines",
+      "taps": 8,
+      "fields": 3,
+      "screens": 3,
+      "ok": true,
+      "err": ""
+    },
+    "S2": {
+      "name": "Créer une affaire pour un CHSLD existant",
+      "taps": 3,
+      "fields": 3,
+      "screens": 2,
+      "ok": true,
+      "err": ""
+    },
+    "S3": {
+      "name": "Voir ma journée et cocher une activité",
+      "taps": 2,
+      "fields": 0,
+      "screens": 1,
+      "ok": true,
+      "err": ""
+    },
+    "S4": {
+      "name": "Passer une soumission à « À relancer »",
+      "taps": 3,
+      "fields": 1,
+      "screens": 1,
+      "ok": true,
+      "err": ""
+    },
+    "S5": {
+      "name": "Trouver le téléphone de l’acheteuse d’un établissement",
+      "taps": 3,
+      "fields": 1,
+      "screens": 2,
+      "ok": true,
+      "err": ""
+    },
+    "S6": {
+      "name": "Marquer une affaire perdue avec la raison",
+      "taps": 4,
+      "fields": 1,
+      "screens": 1,
+      "ok": true,
+      "err": ""
+    },
+    "S7": {
+      "name": "Convertir une affaire gagnée en projet",
+      "taps": 5,
+      "fields": 1,
+      "screens": 3,
+      "ok": true,
+      "err": ""
+    },
+    "S8": {
+      "name": "Un technicien signale un rail endommagé",
+      "taps": 3,
+      "fields": 2,
+      "screens": 2,
+      "ok": true,
+      "err": ""
+    }
+  }
+}

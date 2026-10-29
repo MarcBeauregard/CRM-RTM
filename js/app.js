@@ -161,6 +161,7 @@
           <div class="spacer"></div>
           <label class="search" id="searchBox">${I('search')}<input id="q" type="search" placeholder="Rechercher" autocomplete="off" aria-label="Rechercher"><kbd>⌘K</kbd></label>
           <button class="icon-btn mobile-only" id="qMobile" aria-label="Rechercher">${I('search')}</button>
+          <button class="icon-btn add-btn" id="quickAdd" aria-label="Nouvelle affaire" data-tip="Nouvelle affaire (N)">${I('plus')}</button>
           <button class="icon-btn" id="moreBtn" aria-label="Plus">${I('more')}</button>
         </header>
         <main class="content" id="view" tabindex="-1"></main>
@@ -172,6 +173,7 @@
       <div class="toast" id="toast" role="status"></div>`;
     $('#themeBtn').onclick = (e) => themeMenu(e.currentTarget);
     $('#moreBtn').onclick = (e) => moreMenu(e.currentTarget);
+    $('#quickAdd').onclick = () => dealForm();
     $('#qMobile').onclick = () => searchSheet();
     wireSearch();
   }
@@ -1000,7 +1002,7 @@
   }
 
   /* ———————————————————— Formulaires ———————————————————— */
-  function modal(title, body, primary, onOk) {
+  function modal(title, body, primary, onOk, focusId) {
     const w = document.createElement('div');
     w.innerHTML = `<div class="scrim on" style="z-index:65"></div><div class="modal-wrap"><form class="modal" role="dialog" aria-modal="true"><div class="modal-h"><h2>${title}</h2><button type="button" class="icon-btn" data-x aria-label="Fermer">${I('x')}</button></div><div class="modal-b">${body}</div><div class="modal-f"><button type="button" class="btn lg" data-x>Annuler</button><button class="btn primary lg">${primary}</button></div></form></div>`;
     document.body.appendChild(w);
@@ -1011,7 +1013,7 @@
     $$('.datefield', w).forEach((b) => (b.onclick = () => calendarPop(b, $(`input[name="${b.dataset.name}"]`, w).value, (iso) => {
       $(`input[name="${b.dataset.name}"]`, w).value = iso; b.querySelector('span').textContent = dLong(iso);
     })));
-    setTimeout(() => { const f = $('input:not([type=hidden])', w); if (f) f.focus(); }, 60);
+    setTimeout(() => { const f = focusId ? $('#' + focusId, w) : $('input:not([type=hidden])', w); if (f) f.focus(); }, 60);
     w.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   }
   const TIMES = []; for (let h = 7; h <= 18; h++) for (const m of ['00', '15', '30', '45']) TIMES.push(`${String(h).padStart(2, '0')}:${m}`);
@@ -1047,18 +1049,63 @@
   }
   const opt = (arr, sel) => arr.map(([v, l]) => `<option value="${v}" ${String(v) === String(sel) ? 'selected' : ''}>${esc(l)}</option>`).join('');
 
+  // Ajout rapide : organisation (récentes en un tap, sinon autocomplétion), titre, valeur.
+  // Pipeline = le dernier utilisé ; étape, responsable et date de clôture prennent des valeurs par défaut.
+  const PL_SHORT = { 1: 'Vente', 7: 'Achat', 9: 'Entretien', 6: 'Montérégie', 10: 'Terrain' };
+  const TITLE_HINTS = {
+    1: ['Lève-personnes sur rail', 'Rails de plafond', 'Demande d’info'],
+    7: ['Achat moteurs', 'Achat toiles', 'Chargeurs muraux'],
+    9: ['Entretien préventif', 'Inspection des toiles', 'Réparation'],
+    6: ['Démonstration', 'Projet pilote'],
+    10: ['Rail endommagé', 'Sangle usée', 'Moteur défectueux', 'Ajout de chargeur'],
+  };
+  function recentOrgs() {
+    const seen = new Set(), out = [];
+    db.deals.filter((d) => d.ownerId === 1).sort((a, b) => (a.created > b.created ? -1 : a.created < b.created ? 1 : b.id - a.id))
+      .forEach((d) => { if (!seen.has(d.orgId) && out.length < 4) { seen.add(d.orgId); out.push(org(d.orgId)); } });
+    return out;
+  }
   function dealForm(pre = {}) {
-    const pl = pipeline(prefs.pipelineId);
+    let plId = pre.pipelineId || prefs.lastPipeline || prefs.pipelineId;
+    let orgId = pre.orgId || null;
+    const orgRow = (o) => `<button type="button" class="opt-row" data-org-pick="${o.id}">${orgAvatar(o)}<span class="m-lbl">${esc(o.name)}<small>${esc(o.type)} · ${esc(o.ville)}</small></span></button>`;
     modal('Nouvelle affaire', `
-      <div class="field"><label for="f-t">Titre</label><input id="f-t" name="title" required placeholder="Ex. : Lève-personnes sur rail — 12 chambres"></div>
-      <div class="field"><label for="f-o">Organisation</label><select id="f-o" name="org">${opt(db.orgs.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map((o) => [o.id, o.name]))}</select></div>
-      <div class="field-row"><div class="field"><label for="f-v">Valeur ($)</label><input id="f-v" name="value" inputmode="numeric" placeholder="0"></div>
-      <div class="field"><label for="f-c">Clôture prévue</label>${dateField('f-c', 'close', isoAdd(30))}</div></div>
-      <div class="field-row"><div class="field"><label for="f-s">Étape · ${esc(pl.name)}</label><select id="f-s" name="stage">${opt(pl.stages.map((s) => [s.id, s.name]), pre.stageId)}</select></div>
-      <div class="field"><label for="f-u">Responsable</label><select id="f-u" name="owner">${opt(db.users.map((u) => [u.id, u.name]), prefs.owner || 1)}</select></div></div>`, 'Créer', (f) => {
-      const d = { id: Math.max(...db.deals.map((x) => x.id)) + 1, title: f.get('title'), pipelineId: pl.id, stageId: +f.get('stage'), orgId: +f.get('org'), personId: (db.persons.find((p) => p.orgId === +f.get('org')) || {}).id || null, ownerId: +f.get('owner'), value: +String(f.get('value')).replace(/[^\d]/g, '') || 0, status: 'open', created: TODAY, stageChanged: TODAY, expectedClose: f.get('close') || isoAdd(30), lostReason: null, closeDate: null, soumission: null, labels: [] };
-      db.deals.push(d); save(); render(); toast('Affaire créée'); setTimeout(() => openDeal(d.id), 200);
-    });
+      <div class="seg qa-seg" id="qa-pl" role="group" aria-label="Pipeline">${db.pipelines.map((p) => `<button type="button" data-pl="${p.id}" aria-pressed="${p.id === plId}" title="${esc(p.name)}">${esc(PL_SHORT[p.id] || p.name)}</button>`).join('')}</div>
+      <div class="field"><label for="qa-o">Organisation</label>
+        <div class="org-pick" id="qa-org">
+          <input id="qa-o" autocomplete="off" placeholder="Rechercher un établissement" ${orgId ? 'hidden' : ''}>
+          <div class="org-chosen" id="qa-chosen" ${orgId ? '' : 'hidden'}></div>
+          <div class="opt-list" id="qa-list"></div>
+        </div></div>
+      <div class="field"><label for="qa-t">Titre</label><input id="qa-t" name="title" required autocomplete="off" placeholder="Ex. : Rails de plafond aile B"><div class="chips hints" id="qa-hints"></div></div>
+      <div class="field"><label for="qa-v">Valeur ($)</label><input id="qa-v" name="value" inputmode="numeric" autocomplete="off" placeholder="Optionnelle"></div>`, 'Créer', (f) => {
+      if (!orgId) { $('#qa-o').focus(); $('#qa-org').classList.add('need'); return false; }
+      const pl = pipeline(plId);
+      const stageId = pre.stageId && pl.stages.some((x) => x.id === pre.stageId) ? pre.stageId : pl.stages[0].id;
+      const d = { id: Math.max(...db.deals.map((x) => x.id)) + 1, title: f.get('title').trim(), pipelineId: pl.id, stageId, orgId, personId: (db.persons.find((p) => p.orgId === orgId) || {}).id || null, ownerId: 1, value: +String(f.get('value') || '').replace(/[^\d]/g, '') || 0, status: 'open', created: TODAY, stageChanged: TODAY, expectedClose: isoAdd(30), lostReason: null, closeDate: null, soumission: null, labels: [] };
+      db.deals.push(d); prefs.lastPipeline = pl.id; savePrefs(); save(); render();
+      toast(`Affaire créée · ${pl.stages.find((x) => x.id === stageId).name}`, () => { db.deals.splice(db.deals.indexOf(d), 1); save(); render(); }, false, { l: 'Ouvrir', fn: () => openDeal(d.id) });
+    }, orgId ? 'qa-t' : 'qa-o');
+    const list = $('#qa-list'), input = $('#qa-o');
+    const choose = (id) => {
+      orgId = id; const o = org(id);
+      $('#qa-chosen').innerHTML = `${orgAvatar(o)}<span class="m-lbl">${esc(o.name)}<small>${esc(o.type)} · ${esc(o.ville)}</small></span><button type="button" class="icon-btn" id="qa-clear" aria-label="Changer d’organisation">${I('x')}</button>`;
+      $('#qa-chosen').hidden = false; input.hidden = true; list.innerHTML = ''; $('#qa-org').classList.remove('need');
+      $('#qa-clear').onclick = () => { orgId = null; $('#qa-chosen').hidden = true; input.hidden = false; input.value = ''; showList(); input.focus(); };
+      $('#qa-t').focus();
+    };
+    const showList = () => {
+      const q = norm(input.value).split(/\s+/).filter(Boolean);
+      const items = q.length ? db.orgs.filter((o) => { const h = norm(`${o.name} ${o.ville} ${o.acomba}`); return q.every((w) => h.includes(w)); }).slice(0, 5) : recentOrgs();
+      list.innerHTML = (q.length ? '' : '<div class="m-sec">Récentes</div>') + (items.map(orgRow).join('') || '<div class="opt-empty">Aucun établissement trouvé</div>');
+      $$('[data-org-pick]', list).forEach((b) => (b.onclick = () => choose(+b.dataset.orgPick)));
+    };
+    const showHints = () => { $('#qa-hints').innerHTML = (TITLE_HINTS[plId] || []).map((h) => `<button type="button" class="chip sm" data-hint="${esc(h)}">${esc(h)}</button>`).join(''); $$('[data-hint]').forEach((b) => (b.onclick = () => { const t = $('#qa-t'); t.value = b.dataset.hint + ' — '; t.focus(); })); };
+    $$('#qa-pl [data-pl]').forEach((b) => (b.onclick = () => { plId = +b.dataset.pl; $$('#qa-pl [data-pl]').forEach((x) => x.setAttribute('aria-pressed', x === b)); showHints(); }));
+    input.addEventListener('input', showList);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); const b = $('[data-org-pick]', list); if (b) b.click(); } });
+    if (orgId) choose(orgId); else showList();
+    showHints();
   }
 
   function projectForm(pre = {}) {
@@ -1094,7 +1141,7 @@
     const r = anchor.getBoundingClientRect();
     const el = document.createElement('div');
     el.className = 'pop'; el.id = 'pop'; el.setAttribute('role', 'menu');
-    el.innerHTML = (title ? `<div class="m-sec">${title}</div>` : '') + items.map((it, i) => it.sep ? '<hr>' : it.sec ? `<div class="m-sec">${it.sec}</div>` : `<button class="m" role="menuitem" data-i="${i}">${it.on != null ? `<svg class="i m-check" viewBox="0 0 24 24" style="visibility:${it.on ? 'visible' : 'hidden'}">${P.check}</svg>` : ''}${it.icon || ''}<span class="m-lbl">${it.l}</span>${it.meta != null ? `<span class="m-meta">${it.meta}</span>` : ''}</button>`).join('');
+    el.innerHTML = (title ? `<div class="m-sec">${title}</div>` : '') + items.map((it, i) => it.sep ? '<hr>' : it.sec ? `<div class="m-sec">${it.sec}</div>` : `<button class="m" role="menuitem" data-i="${i}">${it.on != null ? `<svg class="i m-check" viewBox="0 0 24 24" style="visibility:${it.on ? 'visible' : 'hidden'}">${P.check}</svg>` : ''}${it.icon || ''}<span class="m-lbl">${it.l}${it.sub ? `<small>${it.sub}</small>` : ''}</span>${it.meta != null ? `<span class="m-meta">${it.meta}</span>` : ''}</button>`).join('');
     document.body.appendChild(el);
     const w = el.offsetWidth, h = el.offsetHeight;
     let x = r.left, y = r.bottom + 6;
@@ -1122,15 +1169,19 @@
   }
 
   /* ———————————————————— Recherche ———————————————————— */
+  const norm = (x) => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   function searchResults(q) {
-    q = q.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    if (!q) return [];
-    const m = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q);
+    const words = norm(q).split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    // Chaque mot tapé doit se retrouver quelque part (titre, organisation, ville…).
+    const m = (...fields) => { const hay = norm(fields.join(' ')); return words.every((w) => hay.includes(w)); };
     const out = [];
-    db.deals.filter((d) => m(d.title) || m(org(d.orgId).name)).slice(0, 5).forEach((d) => out.push({ sec: 'Affaires', l: esc(d.title), meta: moneyC(d.value), icon: I('deal'), fn: () => openDeal(d.id) }));
-    db.projects.filter((p) => m(p.title)).slice(0, 4).forEach((p) => out.push({ sec: 'Projets', l: esc(p.title), icon: I('proj'), fn: () => openProject(p.id) }));
-    db.orgs.filter((o) => m(o.name) || m(o.ville) || m(o.acomba)).slice(0, 4).forEach((o) => out.push({ sec: 'Organisations', l: esc(o.name), meta: o.ville, icon: I('org'), fn: () => openOrg(o.id) }));
-    db.persons.filter((p) => m(p.name) || m(p.email)).slice(0, 4).forEach((p) => out.push({ sec: 'Personnes', l: esc(p.name), meta: esc(org(p.orgId).name.slice(0, 18)), icon: I('person'), fn: () => openPerson(p.id) }));
+    db.deals.filter((d) => m(d.title, org(d.orgId).name, d.soumission || ''))
+      .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || b.value - a.value).slice(0, 6)
+      .forEach((d) => out.push({ sec: 'Affaires', l: esc(d.title), sub: `${esc(org(d.orgId).name)}${d.status !== 'open' ? ` · ${d.status === 'won' ? 'gagnée' : 'perdue'}` : ''}`, meta: moneyC(d.value), icon: I('deal'), fn: () => openDeal(d.id) }));
+    db.projects.filter((p) => m(p.title)).slice(0, 4).forEach((p) => out.push({ sec: 'Projets', l: esc(projName(p)), sub: esc(org(p.orgId).name), icon: I('proj'), fn: () => openProject(p.id) }));
+    db.orgs.filter((o) => m(o.name, o.ville, o.acomba, o.type)).slice(0, 4).forEach((o) => out.push({ sec: 'Organisations', l: esc(o.name), sub: `${esc(o.type)} · ${esc(o.ville)}`, icon: I('org'), fn: () => openOrg(o.id) }));
+    db.persons.filter((p) => m(p.name, p.email, p.role, org(p.orgId).name)).slice(0, 4).forEach((p) => out.push({ sec: 'Personnes', l: esc(p.name), sub: `${esc(p.role)} · ${esc(org(p.orgId).name)}`, icon: I('person'), fn: () => openPerson(p.id) }));
     const items = []; let last = null;
     out.forEach(({ sec, ...o }) => { if (sec !== last) { items.push({ sec }); last = sec; } items.push(o); });
     return items;
@@ -1153,6 +1204,8 @@
     document.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); if (getComputedStyle($('#searchBox')).display === 'none') searchSheet(); else q.focus(); }
       if (e.key === 'Escape' && !$('.modal')) { closePop(); closeSheet(); }
+      const typing = e.target.closest && e.target.closest('input, textarea, select, [contenteditable]');
+      if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && !$('.modal') && e.key.toLowerCase() === 'n') { e.preventDefault(); dealForm(); }
     });
   }
   function searchSheet() {
@@ -1161,7 +1214,7 @@
       const i = $('#q2', s); setTimeout(() => i.focus(), 350);
       i.oninput = () => {
         const items = searchResults(i.value);
-        $('#q2r', s).innerHTML = items.map((it, n) => it.sec ? `<div class="group-h">${it.sec}</div>` : `<div class="kv link" data-n="${n}" style="background:var(--surface-2);border-radius:12px;margin-bottom:4px"><span style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;font-weight:500">${it.icon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.l}</span></span><span class="v" style="flex:none;color:var(--ink-3);font-weight:400">${it.meta || ''}</span></div>`).join('');
+        $('#q2r', s).innerHTML = items.map((it, n) => it.sec ? `<div class="group-h">${it.sec}</div>` : `<div class="kv link" data-n="${n}" style="background:var(--surface-2);border-radius:12px;margin-bottom:4px"><span style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;font-weight:500">${it.icon}<span class="m-lbl" style="min-width:0">${it.l}${it.sub ? `<small>${it.sub}</small>` : ''}</span></span><span class="v" style="flex:none;color:var(--ink-3);font-weight:400">${it.meta || ''}</span></div>`).join('');
         $$('[data-n]', s).forEach((r) => (r.onclick = () => items[+r.dataset.n].fn()));
       };
     });
@@ -1169,12 +1222,13 @@
 
   /* ———————————————————— Toast & infobulles ———————————————————— */
   let toastT;
-  function toast(msg, undo, celebrate) {
+  function toast(msg, undo, celebrate, action) {
     const t = $('#toast');
-    t.innerHTML = `<span class="ti" style="${celebrate ? '' : ''}"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span><span>${esc(msg)}</span>${undo ? '<button>Annuler</button>' : '<span style="width:8px"></span>'}`;
-    if (undo) $('button', t).onclick = () => { undo(); t.classList.remove('on'); };
+    t.innerHTML = `<span class="ti" style="${celebrate ? '' : ''}"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span><span>${esc(msg)}</span>${action ? `<button data-a>${esc(action.l)}</button>` : ''}${undo ? '<button data-u>Annuler</button>' : '<span style="width:8px"></span>'}`;
+    if (undo) $('[data-u]', t).onclick = () => { undo(); t.classList.remove('on'); };
+    if (action) $('[data-a]', t).onclick = () => { t.classList.remove('on'); action.fn(); };
     t.classList.add('on');
-    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), undo ? 4800 : 2400);
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), undo || action ? 5200 : 2400);
   }
   function wireTips() {
     const tip = $('#tip');
@@ -1213,6 +1267,9 @@
   }
 
   /* ———————————————————— Démarrage ———————————————————— */
+  // Accès lecture seule pour les scénarios de test (scripts/scenarios.js).
+  window.__crm = { get db() { return db; }, TODAY };
+
   shell();
   applyTheme();
   wireTips();
