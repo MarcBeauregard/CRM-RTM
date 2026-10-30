@@ -79,6 +79,19 @@ const check = (ok, label) => { console.log(`${ok ? '✓' : '✗'} ${label}`); if
   await p.click('[data-res=acceptee]'); await p.waitForTimeout(200);
   check(await p.evaluate((i) => { const s = window.__crm.db.soumissions.find((x) => x.id === i); const d = window.__crm.db.deals.find((x) => x.id === s.dealId); return s.status === 'acceptee' && (!d || d.stageId === 74); }, so2.id), 'soumission acceptée → affaire « Acceptée »');
 
+  // Recherche du parc : n° de série + Entrée ouvre la fiche équipement
+  const eq = await p.evaluate(() => window.__crm.db.equipements.find((x) => x.modeleId && x.type !== 'Rail'));
+  await p.goto(url + '#accueil'); await p.click('#q'); await p.keyboard.type(eq.ns); await p.waitForTimeout(150); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+  check(await p.evaluate(() => location.hash) === `#equipement-${eq.id}`, 'recherche par n° de série → fiche équipement');
+  // Accueil : la carte « À décider » reprend là où on s'était arrêté
+  await p.goto(url + '#avalider'); await p.locator('.queue li').nth(2).click(); await p.waitForTimeout(200); const resumed = await p.evaluate(() => location.hash);
+  await p.goto(url + '#accueil'); await p.waitForTimeout(150);
+  check((await p.locator('.attn-card').first().getAttribute('href')) === resumed && (await p.locator('.attn-card .act').first().textContent()).includes('Reprendre'), 'accueil : « Reprendre » la validation en cours');
+  // Rapports : générer un pack depuis l'écran Rapports
+  const nPk = await p.evaluate(() => window.__crm.db.packs.length);
+  await p.goto(url + '#rapports'); await p.click('#rGo'); await p.waitForTimeout(1700);
+  check(await p.evaluate(() => window.__crm.db.packs.length) === nPk + 1, 'rapports : pack généré');
+
   if (errs.length) console.log(errs.join('\n'));
   await b.close();
   if (fails.length || errs.length) process.exitCode = 1;

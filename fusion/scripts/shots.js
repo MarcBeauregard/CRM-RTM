@@ -39,6 +39,7 @@ const only = process.argv[3];
     await run(`${s}-avalider`, w, h, 'light', '#avalider');
     await run(`${s}-valider`, w, h, 'light', '#avalider', (p) => p.click('.queue li >> nth=0'));
     await run(`${s}-soumissions`, w, h, 'light', '#soumissions');
+    await run(`${s}-rapports`, w, h, 'light', '#rapports');
     await run(`${s}-dash-dark`, w, h, 'dark', '#accueil');
     await run(`${s}-deals-dark`, w, h, 'dark', '#affaires');
   }

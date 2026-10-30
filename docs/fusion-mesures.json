@@ -87,6 +87,22 @@
       "screens": 3,
       "ok": true,
       "err": ""
+    },
+    "S11": {
+      "name": "Trouver un équipement par son n° de série",
+      "taps": 2,
+      "fields": 1,
+      "screens": 2,
+      "ok": true,
+      "err": ""
+    },
+    "S12": {
+      "name": "Générer le pack de rapports d’un établissement",
+      "taps": 3,
+      "fields": 1,
+      "screens": 2,
+      "ok": true,
+      "err": ""
     }
   },
   "Ordinateur": {
@@ -173,6 +189,22 @@
     "S10": {
       "name": "Saisir une soumission dans Acomba → affaire",
       "taps": 2,
+      "fields": 1,
+      "screens": 1,
+      "ok": true,
+      "err": ""
+    },
+    "S11": {
+      "name": "Trouver un équipement par son n° de série",
+      "taps": 2,
+      "fields": 1,
+      "screens": 1,
+      "ok": true,
+      "err": ""
+    },
+    "S12": {
+      "name": "Générer le pack de rapports d’un établissement",
+      "taps": 3,
       "fields": 1,
       "screens": 1,
       "ok": true,

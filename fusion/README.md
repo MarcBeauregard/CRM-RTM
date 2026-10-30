@@ -24,7 +24,7 @@ Accueil · **Ventes** (Affaires, Projets, Activités) · **Parc** (Clients, À v
 |---|---|---|
 | 1 | Données, navigation, Clients, fiche Client, fiche Établissement, fiche Équipement | ✅ |
 | 2 | À valider, Valider une intervention (clavier), Soumissions → Affaire | ✅ |
-| 3 | Rapports (packs simulés), Accueil fusionné, recherche globale du parc | à venir |
+| 3 | Rapports (packs simulés), Accueil fusionné, recherche globale du parc | ✅ |
 | 4 | Modèles, Marques, Pièces, fiche Modèle, Paramètres, Importer, Cartographie | à venir |
 
 ## Tests (depuis `fusion/`)
@@ -44,6 +44,8 @@ node scripts/shots.js shots   # captures 390 / 1024 / 1440 / 2200, clair et somb
 | S5 | Téléphone de l'acheteuse : maintenant par la recherche (« acheteuse érables ») | 2 | 2 |
 | S9 | Décider d'une non-conformité (soumission requise) | 3 | 3 |
 | S10 | Saisir une soumission dans Acomba → affaire « Soumission d'achat » | 4 | **2** |
+| S11 | Trouver un équipement par son n° de série (recherche + Entrée) | 2 | 2 |
+| S12 | Générer le pack de rapports d'un établissement (bouton sur la fiche) | 3 | 3 |
 
 S10 se fait au bureau, là où Acomba est ouvert : 2 interactions sur ordinateur. Sur iPhone, Soumissions
 passe par le menu « Plus » (4 interactions).
@@ -53,3 +55,12 @@ passe par le menu « Plus » (4 interactions).
 Sur « Valider une intervention » : ← → précédent / suivant, 1 2 3 décision, E corriger le modèle,
 Entrée enregistrer et passer au suivant, Échap revenir à la file. Sur iPhone, « Enregistrer » est
 fixé en bas de l'écran et la barre d'onglets s'efface pendant la validation.
+
+## Accueil fusionné et recherche
+
+L'accueil garde « Ma journée » et les indicateurs de vente, avec une rangée **Parc** :
+non-conformités à décider (« Reprendre · 3 sur 27 » si une validation est en cours), modèles à
+identifier, soumissions à saisir, dernier rapport livré.
+
+La recherche (`/` ou ⌘K) couvre aussi les établissements, les clients et les équipements : n° de série,
+local (« 116 érables »), modèle ou type. Quand la recherche contient un chiffre, le parc passe avant les ventes.

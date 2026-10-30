@@ -142,6 +142,7 @@
       { h: '#clients', k: 'clients', l: 'Clients', i: 'org', c: () => db.clients.length, also: ['client', 'etablissement', 'equipement', 'organisations'] },
       { h: '#avalider', k: 'avalider', l: 'À valider', i: 'checkc', c: () => db.interventions.filter((x) => x.status === 'a_valider').length, also: ['valider'], hot: true },
       { h: '#soumissions', k: 'soumissions', l: 'Soumissions', i: 'doc', c: () => db.soumissions.filter((x) => x.status === 'a_saisir').length },
+      { h: '#rapports', k: 'rapports', l: 'Rapports', i: 'note' },
     ] },
     { label: 'Contacts', items: [
       { h: '#personnes', k: 'personnes', l: 'Personnes', i: 'person', c: () => db.persons.length },
@@ -187,7 +188,9 @@
       <div class="toast" id="toast" role="status"></div>`;
     $('#themeBtn').onclick = (e) => themeMenu(e.currentTarget);
     $('#moreBtn').onclick = (e) => moreMenu(e.currentTarget);
-    $('#quickAdd').onclick = () => (current === 'projets' ? projectForm() : dealForm());
+    // Le + suit le contexte : projet sur Projets, affaire rattachée à l'établissement ou au client affiché.
+    $('#quickAdd').onclick = () => (current === 'projets' ? projectForm() : current === 'etablissement' ? dealForm({ orgId: routeId })
+      : current === 'client' && etabsOf(routeId).length ? dealForm({ orgId: etabsOf(routeId)[0].id }) : current === 'equipement' && equip(routeId) ? dealForm({ orgId: equip(routeId).etabId }) : dealForm());
     $('#qMobile').onclick = () => searchSheet();
     $('#tabMore').onclick = () => menuSheet();
     wireSearch();
@@ -219,7 +222,7 @@
   /* ———————————————————— Routeur ———————————————————— */
   const routes = { '': viewDash, accueil: viewDash, affaires: viewDeals, projets: viewProjects, activites: viewActivities, organisations: viewClients, clients: viewClients, personnes: viewPersons,
     client: () => viewClient(routeId), etablissement: () => viewEtab(routeId), equipement: () => viewEquip(routeId),
-    avalider: viewAValider, valider: () => viewValider(routeId), soumissions: viewSoumissions };
+    avalider: viewAValider, valider: () => viewValider(routeId), soumissions: viewSoumissions, rapports: viewRapports };
   let current = '', routeId = null;
   function route() {
     const raw = location.hash.replace(/^#\/?/, '').split('?')[0];
@@ -337,6 +340,7 @@
           <div class="delta">Équipe · ${todayActs.length} aujourd’hui</div>
         </a>
       </section>
+      ${parcRow()}
 
       <section class="grid-2 dash-main">
         <div class="card dash-chart">
@@ -381,9 +385,25 @@
       </section>`;
 
     barChart($('#chWon'), months);
+    $$('[data-vtab]', v).forEach((a) => (a.onclick = () => { parcState.vTab = a.dataset.vtab; }));
     $$('[data-quick]', v).forEach((b) => (b.onclick = () => dealForm()));
     $('#dPl').onclick = (e) => pipelineMenu(e.currentTarget, () => render());
     bindRows(v);
+  }
+  // Rangée « Parc » de l'accueil : ce qui attend le bureau, chaque carte mène à son action.
+  function parcRow() {
+    const q = db.interventions.filter((x) => x.status === 'a_valider').sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : a.id - b.id));
+    const resume = q.findIndex((x) => x.id === prefs.lastVal);
+    const unk = db.equipements.filter((e) => !e.modeleId && e.type !== 'Rail').length;
+    const soum = db.soumissions.filter((x) => x.status === 'a_saisir').length;
+    const pack = db.packs.slice().sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.id - a.id))[0];
+    const card = (href, ico, cls, lbl, val, act, extra = '') => `<a class="card attn-card" href="${href}" ${extra}><div class="lbl"><span class="ico ${cls}">${I(ico)}</span>${lbl}</div><div class="val num">${val}</div><div class="act">${act}${I('right', 'chev')}</div></a>`;
+    return `<section class="attn dash-attn" aria-label="Parc">
+      ${card(q.length ? `#valider-${(resume >= 0 ? q[resume] : q[0]).id}` : '#avalider', 'checkc', q.length ? 'warn' : '', 'Non-conformités à décider', nf.format(q.length), q.length ? (resume >= 0 ? `Reprendre · ${resume + 1} sur ${q.length}` : 'Commencer') : 'Rien en attente')}
+      ${card('#avalider', 'cam', unk ? 'warn' : '', 'Modèles à identifier', nf.format(unk), 'Ouvrir la file', 'data-vtab="modele"')}
+      ${card('#soumissions', 'doc', '', 'Soumissions à saisir', nf.format(soum), 'Saisir dans Acomba')}
+      ${pack ? card('#rapports', 'note', '', 'Dernier rapport livré', `<span class="attn-small">${esc(org(pack.etabId).name)}</span>`, `${rel(pack.date)} · ${pack.pdf} PDF`) : ''}
+    </section>`;
   }
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -967,11 +987,12 @@
     const types = TYPE_ORDER.map((t) => [t, eqs.filter((e) => e.type === t).length]).filter(([, n]) => n);
     v.innerHTML = `${crumbs([['Clients', '#clients'], [c.name, `#client-${c.id}`], [o.name]])}
       <div class="page-head"><div><h1>${esc(o.name)}</h1><div class="sub">${nf.format(s.n)} équipements · ${plural(locaux, 'local', 'locaux')} · dernier passage ${s.last ? rel(s.last).toLowerCase() : '—'}</div></div>
-        <div class="tools"><button class="btn primary" id="eNew" aria-label="Nouvelle affaire">${I('plus')}<span class="hide-sm">Nouvelle affaire</span></button></div></div>
+        <div class="tools"><button class="btn" id="ePack">${I('note')}Générer le pack</button><button class="btn primary" id="eNew" aria-label="Nouvelle affaire">${I('plus')}<span class="hide-sm">Nouvelle affaire</span></button></div></div>
       <div class="card type-strip">${types.map(([t, n]) => `<div><b class="num">${nf.format(n)}</b><span>${TYPE_PL[t]}</span></div>`).join('')}</div>
       <div class="seg page-tabs" id="etabTabs" role="tablist">${TABS.map(([k, l, n]) => `<button role="tab" aria-selected="${tab === k}" aria-pressed="${tab === k}" data-t="${k}">${l}${n != null ? `<span class="tab-n">${nf.format(n)}</span>` : ''}</button>`).join('')}</div>
       <div id="etabBody">${body}</div>`;
     $('#eNew').onclick = () => dealForm({ orgId: id });
+    $('#ePack').onclick = (ev) => { const b = ev.currentTarget; b.disabled = true; b.classList.add('busy'); setTimeout(() => generatePack(id), 900); };
     $$('[data-quick]', v).forEach((b) => (b.onclick = () => dealForm({ orgId: id })));
     $$('#etabTabs button').forEach((b) => (b.onclick = () => { parcState.etabTab = b.dataset.t; parcState.etabFor = id; render(); }));
     $$('[data-eqf]', v).forEach((li) => (li.onclick = () => { parcState.etabTab = 'equipements'; parcState.etabFor = id; parcState.eqF = li.dataset.eqf; render(); }));
@@ -1076,6 +1097,7 @@
   function viewValider(id) {
     const v = $('#view'); const x = intv(id);
     if (!x) return viewAValider();
+    if (x.status === 'a_valider' && prefs.lastVal !== id) { prefs.lastVal = id; savePrefs(); }
     const e = equip(x.eqId), o = org(e.etabId), c = client(o.clientId), m = e.modeleId ? modele(e.modeleId) : null;
     const q = queue(); let pos = q.findIndex((y) => y.id === id);
     const done = x.status === 'valide';
@@ -1203,6 +1225,51 @@
     if (d && res === 'refusee') { d.status = 'lost'; d.lostReason = 'Refusée par le client'; d.closeDate = TODAY; }
     save(); closeSheet(); render();
     toast(res === 'acceptee' ? 'Soumission acceptée · affaire à « Acceptée »' : 'Soumission refusée · affaire perdue', () => { so.status = prev.so; if (d) Object.assign(d, prev.d); save(); render(); });
+  }
+
+  /* ———————————————————— Parc : rapports ———————————————————— */
+  function generatePack(etabId, r = { period: 'derniere', pdf: true, xls: true, photos: false }) {
+    const o = org(etabId); const n = eqsOf(etabId).filter((e) => e.last && (r.period === 'derniere' || e.last.slice(0, 4) === TODAY.slice(0, 4))).length;
+    const p = { id: Math.max(600, ...db.packs.map((x) => x.id)) + 1, etabId, date: TODAY, heure: new Intl.DateTimeFormat('fr-CA', { hour: 'numeric', minute: '2-digit' }).format(new Date()).replace(':', ' h '), pdf: r.pdf ? n : 0, taille: ((r.pdf ? n : 0) * (r.photos ? 0.09 : 0.018) + 0.05).toFixed(1).replace('.', ',') };
+    db.packs.push(p); save(); render();
+    toast(`Pack prêt · ${o.name}`, null, false, { l: 'Télécharger', fn: () => toast('Téléchargement simulé dans le prototype') });
+    return p;
+  }
+  // Un pack = un PDF par équipement vu + le fichier Excel récapitulatif ; lien de téléchargement valide 7 jours.
+  const packLive = (p) => daysFrom(p.date) > -7;
+  function viewRapports() {
+    const v = $('#view');
+    const r = parcState.rep || (parcState.rep = { clientId: db.clients[0].id, etabId: etabsOf(db.clients[0].id)[0].id, period: 'derniere', pdf: true, xls: true, photos: false });
+    const c = client(r.clientId), o = org(r.etabId);
+    const eqs = eqsOf(o.id); const seen = eqs.filter((e) => e.last && (r.period === 'derniere' || e.last.slice(0, 4) === TODAY.slice(0, 4)));
+    const undecided = eqs.filter((e) => eqState(e) === 'decider').length;
+    const packs = db.packs.slice().sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.id - a.id));
+    const box = (k, l) => `<button type="button" class="opt-check" role="checkbox" aria-checked="${!!r[k]}" data-opt="${k}"><span class="check ${r[k] ? 'on' : ''}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>${l}</button>`;
+    v.innerHTML = `<div class="page-head"><div><h1>Rapports</h1><div class="sub">Un pack = un PDF par équipement + l’Excel récapitulatif, prêts à envoyer au client</div></div></div>
+      <div class="grid-2 rep-grid">
+        <div class="card"><div class="card-head"><h2>Générer un pack</h2></div><div class="card-body rep-form">
+          <div class="field"><span class="flabel">Client</span><button class="pill wide" id="rClient">${esc(c.name)} ${I('down', 'chev')}</button></div>
+          <div class="field"><span class="flabel">Établissement</span><button class="pill wide" id="rEtab">${esc(o.name)} ${I('down', 'chev')}</button></div>
+          <div class="field"><span class="flabel">Période</span><div class="seg" id="rPer" style="display:flex">${[['derniere', 'Dernière visite'], ['annee', `Année ${TODAY.slice(0, 4)}`]].map(([k, l]) => `<button type="button" aria-pressed="${r.period === k}" data-p="${k}" style="flex:1;justify-content:center">${l}</button>`).join('')}</div></div>
+          <div class="field"><span class="flabel">Contenu</span><div class="opt-list-c">${box('pdf', 'Un PDF par équipement')}${box('xls', 'Excel récapitulatif (gabarit AO)')}${box('photos', 'Inclure les photos dans les PDF')}</div></div>
+          ${undecided ? `<a class="int-note warn-note" href="#avalider">${I('warn')}<span>${plural(undecided, 'non-conforme')} de ce site sans décision de soumission</span>${I('right', 'chev')}</a>` : ''}
+          <button class="btn primary lg" id="rGo" ${!seen.length || (!r.pdf && !r.xls) ? 'disabled' : ''}>Générer le pack · ${nf.format(r.pdf ? seen.length : 0)} PDF${r.xls ? ' + 1 Excel' : ''}</button>
+          <div class="rep-progress" id="rProg" hidden><i></i></div>
+        </div></div>
+        <div class="card"><div class="card-head"><h2>Packs générés</h2><span class="meta num">${packs.length}</span></div><div class="card-body" style="padding-top:2px"><ul class="rows">
+          ${packs.map((p) => { const live = packLive(p); return `<li data-pack="${p.id}"><span class="act-ico">${I('doc')}</span><div class="r-main"><b>${esc(org(p.etabId).name)}</b><span>${rel(p.date)}, ${esc(p.heure)} · ${p.pdf} PDF + 1 Excel · ${p.taille} Mo</span></div><span class="badge ${live ? 'ok' : ''} hide-sm">${live ? `Lien valide jusqu’au ${dShort(isoAdd(daysFrom(p.date) + 7))}` : 'Lien expiré'}</span><button class="btn sm" data-pk="${p.id}">${live ? 'Télécharger' : 'Régénérer'}</button></li>`; }).join('')}
+        </ul></div></div>
+      </div>`;
+    $('#rClient').onclick = (ev) => menu(ev.currentTarget, db.clients.map((x) => ({ l: esc(x.name), on: x.id === r.clientId, fn: () => { r.clientId = x.id; r.etabId = etabsOf(x.id)[0].id; render(); } })), 'Client');
+    $('#rEtab').onclick = (ev) => menu(ev.currentTarget, etabsOf(r.clientId).map((x) => ({ l: esc(x.name), meta: nf.format(eqsOf(x.id).length), on: x.id === r.etabId, fn: () => { r.etabId = x.id; render(); } })), 'Établissement');
+    $$('#rPer button').forEach((b) => (b.onclick = () => { r.period = b.dataset.p; render(); }));
+    $$('[data-opt]', v).forEach((b) => (b.onclick = () => { r[b.dataset.opt] = !r[b.dataset.opt]; render(); }));
+    $('#rGo').onclick = () => {
+      const btn = $('#rGo'), bar = $('#rProg'); btn.disabled = true; bar.hidden = false;
+      requestAnimationFrame(() => bar.classList.add('run'));
+      setTimeout(() => generatePack(o.id, r), 1400);
+    };
+    $$('[data-pk]', v).forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); const p = db.packs.find((x) => x.id === +b.dataset.pk); if (packLive(p)) toast('Téléchargement simulé dans le prototype'); else { p.date = TODAY; save(); render(); toast('Pack régénéré · lien valide 7 jours'); } }));
   }
 
   /* ———————————————————— Liaisons des lignes ———————————————————— */
@@ -1656,7 +1723,14 @@
       .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || b.value - a.value).slice(0, 6)
       .forEach((d) => out.push({ sec: 'Affaires', l: esc(d.title), sub: `${esc(org(d.orgId).name)}${d.status !== 'open' ? ` · ${d.status === 'won' ? 'gagnée' : 'perdue'}` : ''}`, meta: moneyC(d.value), icon: I('deal'), fn: () => openDeal(d.id) }));
     db.projects.filter((p) => m(p.title)).slice(0, 4).forEach((p) => out.push({ sec: 'Projets', l: esc(projName(p)), sub: esc(org(p.orgId).name), icon: I('proj'), fn: () => openProject(p.id) }));
-    db.orgs.filter((o) => m(o.name, o.ville, o.acomba, o.type)).slice(0, 4).forEach((o) => out.push({ sec: 'Organisations', l: esc(o.name), sub: `${esc(o.type)} · ${esc(o.ville)}`, icon: I('org'), fn: () => openOrg(o.id) }));
+    const etabRes = [], eqRes = [];
+    db.orgs.filter((o) => m(o.name, o.ville, o.acomba, o.type, client(o.clientId).name)).slice(0, 4).forEach((o) => etabRes.push({ sec: 'Établissements', l: esc(o.name), sub: `${esc(o.type)} · ${esc(o.ville)} · ${esc(client(o.clientId).name)}`, icon: I('org'), fn: () => openOrg(o.id) }));
+    db.clients.filter((c) => m(c.name, c.acomba) && etabsOf(c.id).length > 1).slice(0, 2).forEach((c) => etabRes.push({ sec: 'Clients', l: esc(c.name), sub: plural(etabsOf(c.id).length, 'établissement'), icon: I('org'), fn: () => { location.hash = `client-${c.id}`; } }));
+    // Équipements : n° de série, local (« 214 érables »), modèle ou type, avec l'établissement.
+    if (words.some((w) => w.length >= 2)) db.equipements.filter((e) => m(e.ns, `local ${e.local}`, e.local, eqTitle(e), e.type, org(e.etabId).name)).slice(0, 6)
+      .forEach((e) => eqRes.push({ sec: 'Équipements', l: `${esc(eqTitle(e))} <span class="r-type">· local ${esc(e.local)}</span>`, sub: `${esc(e.ns)} · ${esc(org(e.etabId).name)}`, icon: I('cam'), fn: () => { closeSheet(); location.hash = `equipement-${e.id}`; } }));
+    // Un chiffre dans la recherche (n° de série, local) : le parc passe avant les ventes.
+    if (/\d/.test(q)) out.unshift(...eqRes, ...etabRes); else out.push(...etabRes, ...eqRes);
     db.persons.filter((p) => m(p.name, p.email, p.role, org(p.orgId).name)).slice(0, 4).forEach((p) => out.push({ sec: 'Personnes', l: esc(p.name), sub: `${esc(p.role)} · ${esc(org(p.orgId).name)}`, icon: I('person'), fn: () => openPerson(p.id) }));
     const items = []; let last = null;
     out.forEach(({ sec, ...o }) => { if (sec !== last) { items.push({ sec }); last = sec; } items.push(o); });
@@ -1701,7 +1775,7 @@
       const i = $('#q2', s); setTimeout(() => i.focus(), 350);
       i.oninput = () => {
         const items = searchResults(i.value);
-        $('#q2r', s).innerHTML = items.map((it, n) => it.sec ? `<div class="group-h">${it.sec}</div>` : `<div class="kv link" data-n="${n}" style="background:var(--surface-2);border-radius:12px;margin-bottom:4px"><span style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;font-weight:500">${it.icon}<span class="m-lbl" style="min-width:0">${it.l}${it.sub ? `<small>${it.sub}</small>` : ''}</span></span><span class="v" style="flex:none;color:var(--ink-3);font-weight:400">${it.meta || ''}</span></div>`).join('');
+        $('#q2r', s).innerHTML = !items.length && i.value.trim() ? `<div class="empty"><b>Aucun résultat</b>Essayez un n° de série, un local, un établissement ou un nom.</div>` : items.map((it, n) => it.sec ? `<div class="group-h">${it.sec}</div>` : `<div class="kv link" data-n="${n}" style="background:var(--surface-2);border-radius:12px;margin-bottom:4px"><span style="display:flex;gap:10px;align-items:center;flex:1;min-width:0;font-weight:500">${it.icon}<span class="m-lbl" style="min-width:0">${it.l}${it.sub ? `<small>${it.sub}</small>` : ''}</span></span><span class="v" style="flex:none;color:var(--ink-3);font-weight:400">${it.meta || ''}</span></div>`).join('');
         $$('[data-n]', s).forEach((r) => (r.onclick = () => items[+r.dataset.n].fn()));
       };
     });

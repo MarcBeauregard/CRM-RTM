@@ -114,6 +114,20 @@ const SCENARIOS = [
     await t.tap('#soForm .btn.primary');
     await t.expect(`(() => { const c = window.__crm.db; const s = c.soumissions.find((x) => x.acomba === 'S-26-777'); const d = s && c.deals.find((x) => x.id === s.dealId); return s && s.status === 'saisie' && d && d.pipelineId === 7 && d.stageId === 71; })()`, 'soumission saisie + affaire');
   } },
+  { id: 'S11', name: 'Trouver un équipement par son n° de série', run: async (t, p) => {
+    const e = await p.evaluate(() => { const d = window.__crm.db; const e = d.equipements.find((x) => x.type !== 'Rail' && x.modeleId); return { id: e.id, ns: e.ns }; });
+    if (t.mobile) { await t.tap('#qMobile'); await t.fill('#q2', e.ns); await t.tap('#q2r [data-n]'); }
+    else { await t.tap('#q'); await t.fill('#q', e.ns); await t.key('Enter'); }
+    await t.expect(`location.hash === '#equipement-${e.id}'`, 'fiche équipement ouverte');
+  } },
+  { id: 'S12', name: 'Générer le pack de rapports d’un établissement', run: async (t, p) => {
+    const { o, ville } = await p.evaluate(() => { const x = window.__crm.db.orgs.find((y) => y.name === 'CHSLD des Érables'); return { o: x.id, ville: x.ville }; });
+    const before = await p.evaluate(() => window.__crm.db.packs.length);
+    await t.search('chsld érables', ['CHSLD des Érables', `CHSLD · ${ville}`]);
+    await t.tap('#ePack');
+    await p.waitForTimeout(1100);
+    await t.expect(`window.__crm.db.packs.length === ${before + 1} && window.__crm.db.packs.at(-1).etabId === ${o}`, 'pack généré');
+  } },
 ];
 
 (async () => {

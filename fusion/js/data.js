@@ -312,7 +312,7 @@
       const loc = type === 'Rail' && railLocals[k] ? railLocals[k] : type === 'Lève-personne sur rail' ? (railLocals[k] = local()) : local();
       const mq = m ? marques.find((x) => x.id === m.marqueId) : null;
       const e = { id: 10000 + equipements.length, etabId: o.id, type, local: loc, modeleId: m ? m.id : null,
-        ns: type === 'Rail' ? `RAIL-${loc}` : `${mq ? mq.name.slice(0, 3).toUpperCase() : 'XXX'}-${i2(1000, 9999)}-${i2(10000, 99999)}`,
+        ns: type === 'Rail' ? `RAIL-${loc}` : mq ? `${mq.name.slice(0, 3).toUpperCase()}-${i2(1000, 9999)}-${i2(10000, 99999)}` : `${i2(100000, 999999)}${i2(100, 999)}`,
         annee: 2008 + i2(0, 17), etat: 'jamais', last: null };
       equipements.push(e);
       // Historique d'interventions : ~75 % du parc déjà vu au moins une fois.
