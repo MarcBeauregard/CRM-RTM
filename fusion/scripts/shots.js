@@ -40,6 +40,11 @@ const only = process.argv[3];
     await run(`${s}-valider`, w, h, 'light', '#avalider', (p) => p.click('.queue li >> nth=0'));
     await run(`${s}-soumissions`, w, h, 'light', '#soumissions');
     await run(`${s}-rapports`, w, h, 'light', '#rapports');
+    await run(`${s}-modele`, w, h, 'light', '#modele-701');
+    await run(`${s}-carto`, w, h, 'light', '#cartographie-701');
+    await run(`${s}-pieces`, w, h, 'light', '#pieces');
+    await run(`${s}-parametres`, w, h, 'light', '#parametres');
+    await run(`${s}-importer`, w, h, 'light', '#importer');
     await run(`${s}-dash-dark`, w, h, 'dark', '#accueil');
     await run(`${s}-deals-dark`, w, h, 'dark', '#affaires');
   }

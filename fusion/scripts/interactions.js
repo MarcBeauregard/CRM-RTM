@@ -92,6 +92,24 @@ const check = (ok, label) => { console.log(`${ok ? '✓' : '✗'} ${label}`); if
   await p.goto(url + '#rapports'); await p.click('#rGo'); await p.waitForTimeout(1700);
   check(await p.evaluate(() => window.__crm.db.packs.length) === nPk + 1, 'rapports : pack généré');
 
+  // Cartographie : dessiner une zone puis la lier à une pièce
+  await p.goto(url + '#cartographie-701'); await p.waitForTimeout(200);
+  const nZ = await p.evaluate(() => window.__crm.db.modeles.find((m) => m.id === 701).zones.length);
+  const cb = await p.locator('#carto').boundingBox();
+  await p.mouse.move(cb.x + cb.width * 0.62, cb.y + cb.height * 0.5); await p.mouse.down(); await p.mouse.move(cb.x + cb.width * 0.8, cb.y + cb.height * 0.7, { steps: 8 }); await p.mouse.up(); await p.waitForTimeout(200);
+  await p.selectOption('#cz', { index: 2 }); await p.waitForTimeout(150);
+  check(await p.evaluate((n) => { const z = window.__crm.db.modeles.find((m) => m.id === 701).zones; return z.length === n + 1 && !!z.at(-1).pieceId; }, nZ), 'cartographie : zone dessinée et liée à une pièce');
+  // Import : exemple → colonnes → vérification → confirmation crée 34 équipements
+  const nE = await p.evaluate(() => window.__crm.db.equipements.length);
+  await p.goto(url + '#importer'); await p.click('#iSample'); for (let k = 0; k < 4; k++) { await p.click('#iNext'); await p.waitForTimeout(120); }
+  check(await p.evaluate((n) => window.__crm.db.equipements.length === n + 34, nE), 'importer : 34 équipements créés après confirmation');
+  // Équipe : changer un rôle
+  await p.goto(url + '#parametres'); await p.locator('[data-role]').first().click(); await p.locator('#pop button.m >> text=Lecture seule').click(); await p.waitForTimeout(150);
+  check(await p.evaluate(() => window.__crm.db.users.find((u) => u.id === 2).role === 'read'), 'équipe : rôle modifié');
+  // Fiche modèle : ajouter un nom reconnu
+  await p.goto(url + '#modele-700'); await p.click('#mAlias'); await p.fill('#al-n', 'MS2 levier'); await p.click('.modal .btn.primary'); await p.waitForTimeout(150);
+  check(await p.evaluate(() => window.__crm.db.modeles.find((m) => m.id === 700).aliasList.includes('MS2 levier')), 'modèle : nom reconnu ajouté');
+
   if (errs.length) console.log(errs.join('\n'));
   await b.close();
   if (fails.length || errs.length) process.exitCode = 1;

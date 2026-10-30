@@ -103,6 +103,14 @@
       "screens": 2,
       "ok": true,
       "err": ""
+    },
+    "S13": {
+      "name": "Identifier le modèle d’un équipement",
+      "taps": 3,
+      "fields": 0,
+      "screens": 3,
+      "ok": true,
+      "err": ""
     }
   },
   "Ordinateur": {
@@ -207,6 +215,14 @@
       "taps": 3,
       "fields": 1,
       "screens": 1,
+      "ok": true,
+      "err": ""
+    },
+    "S13": {
+      "name": "Identifier le modèle d’un équipement",
+      "taps": 3,
+      "fields": 0,
+      "screens": 3,
       "ok": true,
       "err": ""
     }

@@ -128,6 +128,13 @@ const SCENARIOS = [
     await p.waitForTimeout(1100);
     await t.expect(`window.__crm.db.packs.length === ${before + 1} && window.__crm.db.packs.at(-1).etabId === ${o}`, 'pack généré');
   } },
+  { id: 'S13', name: 'Identifier le modèle d’un équipement', run: async (t, p) => {
+    await t.tap('.attn-card[data-vtab="modele"]');
+    const id = +(await p.locator('[data-ident]').first().getAttribute('data-ident'));
+    await t.tap('[data-ident]');
+    await t.tap('#sheet [data-pick]');
+    await t.expect(`!!window.__crm.db.equipements.find((e) => e.id === ${id}).modeleId`, 'modèle identifié');
+  } },
 ];
 
 (async () => {

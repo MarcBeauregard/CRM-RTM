@@ -25,7 +25,7 @@ Accueil · **Ventes** (Affaires, Projets, Activités) · **Parc** (Clients, À v
 | 1 | Données, navigation, Clients, fiche Client, fiche Établissement, fiche Équipement | ✅ |
 | 2 | À valider, Valider une intervention (clavier), Soumissions → Affaire | ✅ |
 | 3 | Rapports (packs simulés), Accueil fusionné, recherche globale du parc | ✅ |
-| 4 | Modèles, Marques, Pièces, fiche Modèle, Paramètres, Importer, Cartographie | à venir |
+| 4 | Modèles, Marques, Pièces, fiche Modèle, Paramètres, Importer, Cartographie | ✅ |
 
 ## Tests (depuis `fusion/`)
 
@@ -46,6 +46,7 @@ node scripts/shots.js shots   # captures 390 / 1024 / 1440 / 2200, clair et somb
 | S10 | Saisir une soumission dans Acomba → affaire « Soumission d'achat » | 4 | **2** |
 | S11 | Trouver un équipement par son n° de série (recherche + Entrée) | 2 | 2 |
 | S12 | Générer le pack de rapports d'un établissement (bouton sur la fiche) | 3 | 3 |
+| S13 | Identifier le modèle d'un équipement (carte de l'accueil → choix en un tap) | 3 | 3 |
 
 S10 se fait au bureau, là où Acomba est ouvert : 2 interactions sur ordinateur. Sur iPhone, Soumissions
 passe par le menu « Plus » (4 interactions).
@@ -64,3 +65,19 @@ identifier, soumissions à saisir, dernier rapport livré.
 
 La recherche (`/` ou ⌘K) couvre aussi les établissements, les clients et les équipements : n° de série,
 local (« 116 érables »), modèle ou type. Quand la recherche contient un chiffre, le parc passe avant les ventes.
+
+## Référentiel et paramètres
+
+- **Modèles** : grille avec photo de référence, filtre par type ; **fiche Modèle** avec noms reconnus
+  (ajouter, retirer), clients qui l'ont, manuels (pièces, service), partage avec RailConfig, pièces liées.
+- **Cartographie du manuel** : dessiner un rectangle sur la vue éclatée (souris, doigt ou stylet), le lier
+  à une pièce, 2 pages. Le PDF est simulé par un dessin.
+- **Marques** et **Pièces** (numéros identiques à Acomba ; « Mettre à jour depuis Acomba » simulé).
+- **Paramètres** : équipe et rôles (Administrateur, Peut corriger les données, Lecture seule), techniciens
+  terrain ; **Importer** en 4 étapes (fichier, colonnes, vérification, confirmation) : rien n'est créé avant
+  la confirmation.
+
+## Ce qui reste simulé dans ce prototype
+
+Génération des PDF, téléchargement, manuels PDF, mise à jour depuis Acomba, envoi d'invitations, lecture
+réelle du fichier Excel importé : dans la vraie app, ces actions passent par le back-office Next.js et Supabase.

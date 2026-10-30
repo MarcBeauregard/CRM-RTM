@@ -816,3 +816,12 @@ body[data-view='affaires'] #quickAdd, body[data-view='projets'] #quickAdd { disp
 .bar .icon-btn { flex: none; }
 .bar-title { min-width: 0; }
 @media (max-width: 760px) { .bar-logo { padding: 8.5px 4px 8.5px 0; } }
+/* Mode sombre : badges teintés lisibles (≥ 4,5:1) */
+:root[data-theme='dark'] .badge.danger, :root[data-theme='dark'] .doc-ico { color: #ff7f78; }
+:root[data-theme='dark'] .badge.purple { color: #dda2ff; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .badge.danger, :root:not([data-theme='light']) .doc-ico { color: #ff7f78; }
+  :root:not([data-theme='light']) .badge.purple { color: #dda2ff; }
+}
+:root:not([data-theme='dark']) .badge.accent { color: #0058b0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .badge.accent { color: var(--accent-ink); } }

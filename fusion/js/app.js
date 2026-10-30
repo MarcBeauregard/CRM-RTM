@@ -104,6 +104,8 @@
     undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
     bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
     checkc: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+    tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
     cam: '<path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/>',
     send: '<path d="M4 12 20 4l-5 16-3-7z"/><path d="m12 13 8-9"/>',
   };
@@ -144,8 +146,14 @@
       { h: '#soumissions', k: 'soumissions', l: 'Soumissions', i: 'doc', c: () => db.soumissions.filter((x) => x.status === 'a_saisir').length },
       { h: '#rapports', k: 'rapports', l: 'Rapports', i: 'note' },
     ] },
+    { label: 'Référentiel', items: [
+      { h: '#modeles', k: 'modeles', l: 'Modèles', i: 'tag', c: () => db.modeles.length, also: ['modele', 'cartographie'] },
+      { h: '#marques', k: 'marques', l: 'Marques', i: 'bolt', c: () => db.marques.length },
+      { h: '#pieces', k: 'pieces', l: 'Pièces', i: 'gear', c: () => db.pieces.length },
+    ] },
     { label: 'Contacts', items: [
       { h: '#personnes', k: 'personnes', l: 'Personnes', i: 'person', c: () => db.persons.length },
+      { h: '#parametres', k: 'parametres', l: 'Paramètres', i: 'gear', also: ['importer'] },
     ] },
   ];
   const NAV_ALL = SECTIONS.flatMap((x) => x.items);
@@ -222,11 +230,12 @@
   /* ———————————————————— Routeur ———————————————————— */
   const routes = { '': viewDash, accueil: viewDash, affaires: viewDeals, projets: viewProjects, activites: viewActivities, organisations: viewClients, clients: viewClients, personnes: viewPersons,
     client: () => viewClient(routeId), etablissement: () => viewEtab(routeId), equipement: () => viewEquip(routeId),
-    avalider: viewAValider, valider: () => viewValider(routeId), soumissions: viewSoumissions, rapports: viewRapports };
+    avalider: viewAValider, valider: () => viewValider(routeId), soumissions: viewSoumissions, rapports: viewRapports,
+    modeles: viewModeles, modele: () => viewModele(routeId), cartographie: () => viewCarto(routeId), marques: viewMarques, pieces: viewPieces, parametres: viewParametres, importer: viewImporter };
   let current = '', routeId = null;
   function route() {
     const raw = location.hash.replace(/^#\/?/, '').split('?')[0];
-    const pm = raw.match(/^(client|etablissement|equipement|valider)-(\d+)$/);
+    const pm = raw.match(/^(client|etablissement|equipement|valider|modele|cartographie)-(\d+)$/);
     const h = pm ? pm[1] : raw;
     const prevId = routeId; routeId = pm ? +pm[2] : null;
     const k = routes[h] && h !== 'accueil' ? h : '';
@@ -1163,7 +1172,7 @@
     let sel = items.find((s) => s.id === parcState.soSel) || items[0];
     const mobile = matchMedia('(max-width: 760px)').matches;
     v.innerHTML = `${crumbs([['À valider', '#avalider'], ['Soumissions']])}<div class="page-head"><div><h1>Soumissions</h1><div class="sub">L’appli prépare les pièces ; la soumission se saisit dans Acomba, puis son numéro devient une affaire</div></div>
-      <div class="tools"><button class="btn" id="soXls">${I('doc')}<span class="hide-sm">Exporter en Excel</span></button></div></div>
+      <div class="tools"><button class="btn" id="soXls" aria-label="Exporter en Excel">${I('doc')}<span class="hide-sm">Exporter en Excel</span></button></div></div>
       <div class="seg page-tabs" id="soTabs" role="tablist" style="max-width:860px">${SO_ST.map(([k, l]) => `<button role="tab" aria-selected="${st === k}" aria-pressed="${st === k}" data-s="${k}">${l}<span class="tab-n">${db.soumissions.filter((s) => s.status === k).length}</span></button>`).join('')}</div>
       ${items.length ? `<div class="so-split"><div class="card so-list"><ul class="rows">${items.map((s) => { const e = equip(s.eqId); const x = intv(s.interventionId); return `<li data-so="${s.id}" ${!mobile && sel && s.id === sel.id ? 'aria-current="true"' : ''}><div class="r-main"><b>${esc(eqTitle(e))}</b><span>${esc(eqWhere(e))}</span><span>${s.acomba ? `<span class="mono">${esc(s.acomba)}</span> · ` : ''}${plural(soLines(s).length, 'pièce')} · ${esc(tech(x.techId).name)}</span></div><div class="r-end">${rel(s.created)}</div></li>`; }).join('')}</ul></div>
         ${mobile ? '' : `<div class="card so-detail" id="soDetail"></div>`}</div>`
@@ -1270,6 +1279,200 @@
       setTimeout(() => generatePack(o.id, r), 1400);
     };
     $$('[data-pk]', v).forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); const p = db.packs.find((x) => x.id === +b.dataset.pk); if (packLive(p)) toast('Téléchargement simulé dans le prototype'); else { p.date = TODAY; save(); render(); toast('Pack régénéré · lien valide 7 jours'); } }));
+  }
+
+  /* ———————————————————— Référentiel : modèles, marques, pièces ———————————————————— */
+  const eqCountOf = (mid) => db.equipements.filter((e) => e.modeleId === mid).length;
+  // Noms reconnus : variantes qu'un technicien ou un fichier client peut écrire pour ce modèle.
+  function aliasesOf(m) {
+    if (m.aliasList) return m.aliasList;
+    const mq = marque(m.marqueId).name; const base = [`${mq} ${m.name}`, m.name, `${mq.split(' ')[0]} ${m.name}`, m.name.replace(/\s+/g, ''), `${m.name} ${m.type === 'Rail' ? 'rail' : 'lift'}`, m.name.toUpperCase(), `${mq.slice(0, 3).toUpperCase()} ${m.name}`];
+    return (m.aliasList = [...new Set(base)].slice(0, Math.max(2, Math.min(7, m.aliases))));
+  }
+  function viewModeles() {
+    const v = $('#view'); const q = norm(parcState.mq || ''); const t = parcState.mt || '';
+    const types = [...new Set(db.modeles.map((m) => m.type))];
+    const list = db.modeles.filter((m) => (!t || m.type === t) && (!q || norm(modeleName(m) + ' ' + aliasesOf(m).join(' ')).includes(q))).map((m) => ({ m, n: eqCountOf(m.id) })).sort((a, b) => b.n - a.n);
+    v.innerHTML = `<div class="page-head"><div><h1>Modèles</h1><div class="sub">${plural(db.marques.length, 'marque')} · ${plural(db.modeles.length, 'modèle')} · une photo de référence aide à identifier les équipements</div></div>
+      <div class="tools"><label class="search inline" for="mq">${I('search')}<input id="mq" type="search" placeholder="Marque ou modèle" autocomplete="off" value="${esc(parcState.mq || '')}"></label>
+      <button class="pill" id="mType">${t ? esc(t) : 'Tous les types'} ${I('down', 'chev')}</button></div></div>
+      <div class="model-grid">${list.map(({ m, n }) => `<a class="card model-card" href="#modele-${m.id}"><div class="ph">${I('cam')}<span>Photo de référence</span></div><div class="mc-b"><b>${esc(modeleName(m))}</b><span>${esc(m.type)}</span><span class="mc-n"><b class="num">${nf.format(n)}</b> équipements${m.manuel ? ' · <span class="badge accent">Manuel</span>' : ''}</span></div></a>`).join('') || '<div class="card empty" style="grid-column:1/-1"><b>Aucun modèle</b>Essayez une autre marque ou un autre type.</div>'}</div>`;
+    const mq = $('#mq'); mq.oninput = () => { parcState.mq = mq.value; render(); const n = $('#mq'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
+    $('#mType').onclick = (ev) => menu(ev.currentTarget, [{ l: 'Tous les types', on: !t, fn: () => { parcState.mt = ''; render(); } }, { sep: true }, ...types.map((x) => ({ l: esc(x), on: t === x, fn: () => { parcState.mt = x; render(); } }))], 'Type');
+  }
+
+  function viewModele(id) {
+    const v = $('#view'); const m = modele(id);
+    if (!m) return viewModeles();
+    const mq = marque(m.marqueId); const eqs = db.equipements.filter((e) => e.modeleId === id);
+    const byClient = {}; eqs.forEach((e) => { const c = org(e.etabId).clientId; byClient[c] = (byClient[c] || 0) + 1; });
+    const clientsN = Object.entries(byClient).sort((a, b) => b[1] - a[1]);
+    const ps = db.pieces.filter((p) => p.modeleId === id).sort((a, b) => b.posees - a.posees);
+    const zones = m.zones || [];
+    v.innerHTML = `${crumbs([['Modèles', '#modeles'], [mq.name, '#marques'], [m.name]])}
+      <div class="page-head"><div><h1>${esc(modeleName(m))}</h1><div class="sub">${esc(m.type)}${m.capacite ? ` · capacité ${m.capacite} kg` : ''} · ${nf.format(eqs.length)} équipements chez ${plural(clientsN.length, 'client')}</div></div>
+        <div class="tools">${m.manuel ? `<a class="btn primary" href="#cartographie-${m.id}" aria-label="Cartographier le manuel">${I('pin')}<span class="hide-sm">Cartographier le manuel</span></a>` : ''}</div></div>
+      <div class="grid-2">
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div class="card"><div class="card-body" style="padding-top:18px"><div class="photo-main" style="aspect-ratio:16/10">${I('cam')}<span>Photo de référence</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><span class="muted" style="font-size:13px">Sert à identifier ce modèle sur les photos des techniciens</span><button class="btn sm" id="mPhoto">Remplacer</button></div></div></div>
+          <div class="card"><div class="card-head"><h2>Noms reconnus</h2><span class="meta num">${aliasesOf(m).length}</span></div><div class="card-body" style="padding-top:2px">
+            <div class="muted" style="font-size:13px;margin-bottom:10px">Quand un technicien ou un fichier client écrit l’un de ces noms, l’appli reconnaît ce modèle.</div>
+            <div class="chips" style="margin:0">${aliasesOf(m).map((a, k) => `<span class="chip alias">${esc(a)}<button type="button" data-rm="${k}" aria-label="Retirer ${esc(a)}">${I('x')}</button></span>`).join('')}<button type="button" class="chip add" id="mAlias">${I('plus')}Ajouter un nom</button></div></div></div>
+          <div class="card"><div class="card-head"><h2>Chez les clients</h2></div><div class="card-body" style="padding-top:2px"><ul class="rank">${clientsN.slice(0, 6).map(([cid, n]) => `<li data-href="#client-${cid}"><span class="rk-name">${esc(client(+cid).name)}</span><span class="rk-v">${nf.format(n)}</span><span class="track"><i style="width:${(n / clientsN[0][1]) * 100}%"></i></span></li>`).join('') || '<li class="empty" style="display:block;height:auto"><b>Aucun équipement</b></li>'}</ul></div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div class="card"><div class="card-head"><h2>Manuels</h2></div><div class="card-body" style="padding-top:2px">
+            ${m.manuel ? `<div class="doc-row"><span class="doc-ico">PDF</span><div class="r-main"><b>Manuel de pièces</b><span>${esc(m.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}-parts-list.pdf · 2,7 Mo · ${plural(zones.length, 'pièce')} cartographiée${zones.length > 1 ? 's' : ''}</span></div><a class="btn sm" href="#cartographie-${m.id}">Cartographier</a></div>`
+              : `<button type="button" class="drop" id="mDrop">${I('doc')}<b>Manuel de pièces</b><span>Glisser le PDF ici, ou choisir un fichier</span></button>`}
+            <button type="button" class="drop" id="mDrop2">${I('doc')}<b>Manuel de service</b><span>Glisser le PDF ici, ou choisir un fichier</span></button>
+            <button type="button" class="opt-check" role="switch" aria-checked="${!!m.railconfig}" id="mRc"><span class="switch ${m.railconfig ? 'on' : ''}" aria-hidden="true"><i></i></span>Rendre ces manuels disponibles dans RailConfig</button>
+          </div></div>
+          <div class="card table-card"><div class="card-head"><h2>Pièces</h2><span class="meta num">${ps.length}</span></div><div class="tbl-scroll"><table class="tbl">
+            <thead><tr><th>N° de pièce</th><th>Description</th><th class="r">Posée</th><th class="hide-sm">Sur le manuel</th></tr></thead>
+            <tbody>${ps.map((p) => { const z = zones.find((x) => x.pieceId === p.id); return `<tr><td class="mono" style="font-weight:600">${esc(p.code)}</td><td><div class="ell" style="max-width:240px">${esc(p.desc.split(' — ')[0])}</div></td><td class="r">${p.posees || '<span class="muted">—</span>'}</td><td class="hide-sm">${z ? `<span class="badge accent">Page ${z.page}</span>` : '<span class="muted">—</span>'}</td></tr>`; }).join('')}</tbody></table></div></div>
+        </div>
+      </div>`;
+    $('#mPhoto').onclick = () => toast('Photo remplacée (simulation)');
+    $$('#mDrop, #mDrop2', v).forEach((b) => (b.onclick = () => { if (b.id === 'mDrop') { m.manuel = true; m.zones = m.zones || []; save(); render(); toast('Manuel de pièces ajouté'); } else toast('Manuel de service ajouté (simulation)'); }));
+    $('#mRc').onclick = () => { m.railconfig = !m.railconfig; save(); render(); toast(m.railconfig ? 'Manuels visibles dans RailConfig' : 'Manuels retirés de RailConfig'); };
+    $$('[data-rm]', v).forEach((b) => (b.onclick = () => { const l = aliasesOf(m); const [gone] = l.splice(+b.dataset.rm, 1); save(); render(); toast(`« ${gone} » retiré`, () => { l.splice(+b.dataset.rm, 0, gone); save(); render(); }); }));
+    $('#mAlias').onclick = () => modal('Ajouter un nom reconnu', `<div class="field"><label for="al-n">Nom écrit par un technicien ou un client</label><input id="al-n" name="n" required autocomplete="off" placeholder="Ex. : MaxiSky600"></div>`, 'Ajouter', (f) => { aliasesOf(m).push(String(f.get('n')).trim()); save(); render(); toast('Nom ajouté'); });
+    bindRows(v);
+  }
+
+  // Cartographie du manuel : des zones dessinées sur une page du PDF, chacune liée à une pièce.
+  function viewCarto(id) {
+    const v = $('#view'); const m = modele(id);
+    if (!m) return viewModeles();
+    m.zones = m.zones || [];
+    const page = parcState.cPage || 1; const sel = m.zones.find((z) => z.id === parcState.cSel);
+    const zp = m.zones.filter((z) => z.page === page);
+    const ps = db.pieces.filter((p) => p.modeleId === id);
+    v.innerHTML = `${crumbs([['Modèles', '#modeles'], [modeleName(m), `#modele-${m.id}`], ['Manuel de pièces']])}
+      <div class="page-head"><div><h1>Cartographier le manuel</h1><div class="sub">${plural(m.zones.length, 'pièce')} cartographiée${m.zones.length > 1 ? 's' : ''} · dessinez un rectangle sur la vue éclatée, puis liez-le à une pièce</div></div>
+        <div class="tools"><div class="seg" id="cPages">${[1, 2].map((n) => `<button aria-pressed="${page === n}" data-pg="${n}">Page ${n}</button>`).join('')}</div><a class="btn primary" href="#modele-${m.id}" aria-label="Terminé">${I('check')}<span class="hide-sm">Terminé</span></a></div></div>
+      <div class="grid-2 carto-grid">
+        <div class="card"><div class="card-body" style="padding-top:16px"><div class="carto" id="carto" aria-label="Page ${page} du manuel : vue éclatée">
+          <svg class="carto-art" viewBox="0 0 400 300" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="140" y="20" width="120" height="34" rx="6"/><path d="M200 54v40"/><rect x="150" y="94" width="100" height="70" rx="10"/><circle cx="175" cy="129" r="12"/><circle cx="225" cy="129" r="12"/><path d="M200 164v50"/><path d="M160 214h80l-10 40h-60z"/><path d="M60 40h60M60 40v220M340 60v200M280 60h60"/><rect x="40" y="250" width="40" height="22" rx="4"/><rect x="320" y="250" width="40" height="22" rx="4"/></g></svg>
+          ${zp.map((z) => { const p = db.pieces.find((x) => x.id === z.pieceId); return `<button type="button" class="zone ${sel && sel.id === z.id ? 'on' : ''}" data-z="${z.id}" style="left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%" aria-label="Zone ${esc(p ? p.code : 'sans pièce')}"><span>${esc(p ? p.code : '?')}</span></button>`; }).join('')}
+          <div class="zone draft" id="draft" hidden></div>
+        </div><div class="muted" style="font-size:12.5px;margin-top:8px">Glisser pour dessiner une zone · toucher une zone pour la lier à une pièce</div></div></div>
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div class="card"><div class="card-head"><h2>Zone sélectionnée</h2></div><div class="card-body" style="padding-top:2px">${sel ? `
+            <div class="field"><label for="cz">Pièce liée</label><select id="cz">${['<option value="">Choisir une pièce…</option>', ...ps.map((p) => `<option value="${p.id}" ${p.id === sel.pieceId ? 'selected' : ''}>${esc(p.code)} · ${esc(p.desc.split(' — ')[0])}</option>`)].join('')}</select></div>
+            <button class="btn danger" id="cDel">${I('x')}Supprimer la zone</button>` : '<div class="muted" style="font-size:13.5px">Dessinez ou touchez une zone sur la page.</div>'}</div></div>
+          <div class="card"><div class="card-head"><h2>Zones de cette page</h2><span class="meta num">${zp.length}</span></div><div class="card-body" style="padding-top:2px"><ul class="rows">${zp.map((z) => { const p = db.pieces.find((x) => x.id === z.pieceId); return `<li data-zs="${z.id}"><span class="act-ico">${I('pin')}</span><div class="r-main"><b class="mono">${esc(p ? p.code : 'Sans pièce')}</b><span>${esc(p ? p.desc.split(' — ')[0] : 'À lier')}</span></div></li>`; }).join('') || '<li class="empty" style="display:block"><b>Aucune zone</b>Dessinez un rectangle autour d’une pièce.</li>'}</ul></div></div>
+        </div>
+      </div>`;
+    $$('#cPages button').forEach((b) => (b.onclick = () => { parcState.cPage = +b.dataset.pg; parcState.cSel = null; render(); }));
+    $$('[data-z],[data-zs]', v).forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); parcState.cSel = +(b.dataset.z || b.dataset.zs); render(); }));
+    const cz = $('#cz'); if (cz) cz.onchange = () => { sel.pieceId = +cz.value || null; save(); render(); toast('Zone liée à la pièce'); };
+    const cd = $('#cDel'); if (cd) cd.onclick = () => { const k = m.zones.indexOf(sel); m.zones.splice(k, 1); parcState.cSel = null; save(); render(); toast('Zone supprimée', () => { m.zones.splice(k, 0, sel); save(); render(); }); };
+    // Dessin d'une zone au pointeur (souris, doigt ou stylet).
+    const box = $('#carto'), dr = $('#draft'); let st = null;
+    const pt = (e) => { const r = box.getBoundingClientRect(); return [Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100)), Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100))]; };
+    box.addEventListener('pointerdown', (e) => { if (e.target.closest('.zone:not(.draft)')) return; st = pt(e); box.setPointerCapture(e.pointerId); });
+    box.addEventListener('pointermove', (e) => { if (!st) return; const [x, y] = pt(e); Object.assign(dr.style, { left: Math.min(x, st[0]) + '%', top: Math.min(y, st[1]) + '%', width: Math.abs(x - st[0]) + '%', height: Math.abs(y - st[1]) + '%' }); dr.hidden = false; });
+    box.addEventListener('pointerup', (e) => {
+      if (!st) return; const [x, y] = pt(e); const w = Math.abs(x - st[0]), h = Math.abs(y - st[1]); const s0 = st; st = null; dr.hidden = true;
+      if (w < 3 || h < 3) return;
+      const z = { id: Date.now(), page, x: Math.min(x, s0[0]), y: Math.min(y, s0[1]), w, h, pieceId: null };
+      m.zones.push(z); parcState.cSel = z.id; save(); render(); setTimeout(() => { const s = $('#cz'); if (s) s.focus(); }, 50);
+    });
+  }
+
+  function viewMarques() {
+    const v = $('#view');
+    const rows = db.marques.map((b) => { const ms = db.modeles.filter((m) => m.marqueId === b.id); return { b, ms, n: sum(ms, (m) => eqCountOf(m.id)), docs: ms.filter((m) => m.manuel).length }; }).sort((a, z) => z.n - a.n);
+    const todo = db.modeles.filter((m) => !m.manuel).map((m) => ({ m, n: eqCountOf(m.id) })).sort((a, b) => b.n - a.n).slice(0, 5);
+    v.innerHTML = `${crumbs([['Modèles', '#modeles'], ['Marques']])}<div class="page-head"><div><h1>Marques</h1><div class="sub">${plural(db.marques.length, 'marque')} · ${plural(db.modeles.length, 'modèle')}</div></div>
+      <div class="tools"><button class="btn primary" id="bNew" aria-label="Ajouter une marque">${I('plus')}<span class="hide-sm">Ajouter une marque</span></button></div></div>
+      <div class="grid-2">
+        <div class="card table-card"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Marque</th><th class="r">Modèles</th><th class="r">Équipements</th><th class="r hide-sm">Manuels</th></tr></thead>
+          <tbody>${rows.map((r) => `<tr data-mq="${r.b.id}"><td><span class="who"><span class="avatar sq" style="--h:${hueOf(r.b.name)}">${initials(r.b.name)}</span><span class="t-main">${esc(r.b.name)}</span></span></td><td class="r">${r.ms.length}</td><td class="r" style="font-weight:600">${nf.format(r.n)}</td><td class="r hide-sm">${r.docs ? r.docs : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div></div>
+        <div class="card"><div class="card-head"><h2>Manuels à ajouter en priorité</h2></div><div class="card-body" style="padding-top:2px">
+          <div class="muted" style="font-size:13px;margin-bottom:6px">${db.modeles.filter((m) => m.manuel).length} modèle${db.modeles.filter((m) => m.manuel).length > 1 ? 's' : ''} sur ${db.modeles.length} a son manuel de pièces. Les plus présents d’abord :</div>
+          <ul class="rows">${todo.map(({ m, n }) => `<li data-href="#modele-${m.id}"><span class="act-ico">${I('doc')}</span><div class="r-main"><b>${esc(modeleName(m))}</b><span>${nf.format(n)} équipements</span></div><span class="btn sm">Ajouter</span></li>`).join('')}</ul></div></div>
+      </div>`;
+    $$('[data-mq]', v).forEach((r) => (r.onclick = () => { parcState.mq = marque(+r.dataset.mq).name; location.hash = 'modeles'; }));
+    $('#bNew').onclick = () => modal('Ajouter une marque', '<div class="field"><label for="b-n">Nom</label><input id="b-n" name="n" required autocomplete="off" placeholder="Ex. : Liko"></div>', 'Ajouter', (f) => { db.marques.push({ id: Math.max(...db.marques.map((b) => b.id)) + 1, name: String(f.get('n')).trim() }); save(); render(); toast('Marque ajoutée'); });
+    bindRows(v);
+  }
+
+  function viewPieces() {
+    const v = $('#view'); const f = parcState.pf || 'posees'; const q = norm(parcState.pq || '');
+    const list = db.pieces.filter((p) => (f === 'toutes' || p.posees) && (!q || norm(`${p.code} ${p.desc}`).includes(q))).sort((a, b) => b.posees - a.posees);
+    v.innerHTML = `${crumbs([['Modèles', '#modeles'], ['Pièces']])}<div class="page-head"><div><h1>Pièces</h1><div class="sub">${nf.format(db.pieces.length)} pièces au catalogue · ${db.pieces.filter((p) => p.posees).length} déjà posées sur le terrain</div></div>
+      <div class="tools"><button class="btn" id="pSync" aria-label="Mettre à jour depuis Acomba">${I('sync')}<span class="hide-sm">Mettre à jour depuis Acomba</span></button></div></div>
+      <div class="int-note" style="margin:-6px 0 16px">${I('sync')}<span>Les prix et l’inventaire restent dans Acomba. Ici on garde les mêmes numéros de pièce et les modèles où chaque pièce va, pour coller la liste telle quelle dans Acomba.</span></div>
+      <div class="eq-tools"><label class="search inline" for="pq">${I('search')}<input id="pq" type="search" placeholder="N° de pièce ou description" autocomplete="off" value="${esc(parcState.pq || '')}"></label>
+        <div class="seg" id="pf">${[['posees', 'Déjà posées'], ['toutes', 'Toutes']].map(([k, l]) => `<button aria-pressed="${f === k}" data-f="${k}">${l}<span class="tab-n">${k === 'toutes' ? db.pieces.length : db.pieces.filter((p) => p.posees).length}</span></button>`).join('')}</div></div>
+      <div class="card table-card"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>N° de pièce</th><th>Description</th><th class="r">Posée</th><th class="hide-sm">Modèle lié</th></tr></thead>
+        <tbody>${list.slice(0, 200).map((p) => { const m = modele(p.modeleId); return `<tr data-href="#modele-${m.id}"><td class="mono" style="font-weight:600">${esc(p.code)}</td><td><div class="ell" style="max-width:300px">${esc(p.desc.split(' — ')[0])}</div></td><td class="r">${p.posees || '<span class="muted">—</span>'}</td><td class="hide-sm muted">${esc(modeleName(m))}</td></tr>`; }).join('') || '<tr><td colspan="4"><div class="empty"><b>Aucune pièce</b>Essayez un autre numéro ou une autre description.</div></td></tr>'}</tbody></table></div></div>`;
+    const pq = $('#pq'); pq.oninput = () => { parcState.pq = pq.value; render(); const n = $('#pq'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
+    $$('#pf button').forEach((b) => (b.onclick = () => { parcState.pf = b.dataset.f; render(); }));
+    $('#pSync').onclick = (ev) => { const b = ev.currentTarget; b.disabled = true; setTimeout(() => { b.disabled = false; toast('Catalogue à jour · aucune pièce modifiée (simulation)'); }, 900); };
+    bindRows(v);
+  }
+
+  /* ———————————————————— Paramètres : équipe, importer ———————————————————— */
+  const ROLES = [['admin', 'Administrateur', 'Tout, y compris inviter l’équipe et importer des fichiers.'], ['edit', 'Peut corriger les données', 'Modifie équipements, locaux et sites, décide des soumissions, génère les rapports. Chaque changement est signé et peut être annulé.'], ['read', 'Lecture seule', 'Consulte et télécharge les rapports.']];
+  const roleOf = (u) => u.role || (u.id === 1 ? 'admin' : u.id % 2 ? 'read' : 'edit');
+  const paramTabs = (k) => `<div class="seg page-tabs" style="max-width:420px">${[['parametres', 'Équipe et droits'], ['importer', 'Importer un fichier']].map(([h, l]) => `<a role="tab" class="seg-a" aria-selected="${k === h}" aria-pressed="${k === h}" href="#${h}">${l}</a>`).join('')}</div>`;
+  function viewParametres() {
+    const v = $('#view');
+    v.innerHTML = `<div class="page-head"><div><h1>Paramètres</h1></div><div class="tools"><button class="btn primary" id="tInv" aria-label="Inviter un collègue">${I('plus')}<span class="hide-sm">Inviter un collègue</span></button></div></div>${paramTabs('parametres')}
+      <div class="grid-2">
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div class="card"><div class="card-head"><h2>Équipe du bureau</h2><span class="meta num">${db.users.length}</span></div><div class="card-body" style="padding-top:2px"><ul class="rows">${db.users.map((u) => `<li class="team-row"><span class="avatar lg" style="--h:${u.hue}">${u.initials}</span><div class="r-main"><b>${esc(u.name)}${u.id === 1 ? ' <span class="badge">Vous</span>' : ''}</b><span>${esc(u.short.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''))}@rtmmedical.com</span></div>${u.id === 1 ? '<span class="r-end" style="color:var(--ink)">Administrateur</span>' : `<button class="pill" data-role="${u.id}">${ROLES.find((r) => r[0] === roleOf(u))[1]} ${I('down', 'chev')}</button>`}</li>`).join('')}</ul></div></div>
+          <div class="card"><div class="card-head"><h2>Techniciens terrain</h2><span class="meta">${db.techniciens.length} actifs · ils travaillent dans RailConfig</span></div><div class="card-body" style="padding-top:2px"><ul class="rows">${db.techniciens.map((t) => { const n = db.interventions.filter((x) => x.techId === t.id && daysFrom(x.date) > -7).length; return `<li><span class="avatar lg" style="--h:${t.hue}">${t.initials}</span><div class="r-main"><b>${esc(t.name)}</b><span>${plural(n, 'intervention')} ces 7 derniers jours</span></div></li>`; }).join('')}</ul></div></div>
+        </div>
+        <div class="card"><div class="card-head"><h2>Qui peut faire quoi</h2></div><div class="card-body" style="padding:0 0 8px"><div class="group flat">${ROLES.map(([, l, d]) => `<div class="kv role-kv"><span class="k" style="color:var(--ink);font-weight:600;width:auto">${l}</span><span class="v" style="white-space:normal;text-align:left;font-weight:400;color:var(--ink-2)">${d}</span></div>`).join('')}</div></div></div>
+      </div>`;
+    $$('[data-role]', v).forEach((b) => (b.onclick = (ev) => { const u = db.users.find((x) => x.id === +b.dataset.role); menu(ev.currentTarget, ROLES.filter((r) => r[0] !== 'admin' || true).map(([k, l]) => ({ l, on: roleOf(u) === k, fn: () => { u.role = k; save(); render(); toast(`${u.short} : ${l.toLowerCase()}`); } })), 'Rôle'); }));
+    $('#tInv').onclick = () => modal('Inviter un collègue', `<div class="field"><label for="i-m">Courriel</label><input id="i-m" name="m" type="email" required autocomplete="off" placeholder="prenom@rtmmedical.com"></div>`, 'Envoyer l’invitation', () => toast('Invitation préparée (simulation : aucun courriel envoyé)'));
+  }
+
+  const IMP_TYPES = [['equipements', 'Des équipements d’un client'], ['interventions', 'Des interventions'], ['pieces', 'Le catalogue de pièces (export Acomba)']];
+  const IMP_STEPS = ['Fichier', 'Colonnes', 'Vérification', 'Confirmation'];
+  function viewImporter() {
+    const v = $('#view');
+    const im = parcState.imp || (parcState.imp = { step: 0, type: 'equipements', clientId: db.clients[0].id, file: null });
+    db.imports = db.imports || [{ id: 1, file: 'liste_equipements_2026.xlsx', date: isoAdd(-63), lignes: 38, etat: 'analysé' }, { id: 2, file: 'extraction_interventions_151.xlsx', date: isoAdd(-146), lignes: 150, etat: 'Import terminé · 28 créés · 44 doublons ignorés · 3 erreurs' }];
+    const COLS = [['Numéro de série', 'N° de série', true], ['Local / Chambre', 'Local', true], ['Marque', 'Marque', true], ['Modèle', 'Modèle', true], ['Type d’appareil', 'Type', true], ['Année', 'Année de fabrication', false]];
+    let step = '';
+    if (im.step === 0) step = `<div class="field"><span class="flabel">Ce fichier contient</span><div class="decisions">${IMP_TYPES.map(([k, l]) => `<button type="button" role="radio" aria-checked="${im.type === k}" data-it="${k}"><span><b>${l}</b></span></button>`).join('')}</div></div>
+      ${im.type === 'equipements' ? `<div class="field"><span class="flabel">Client</span><button class="pill wide" id="iClient">${esc(client(im.clientId).name)} ${I('down', 'chev')}</button></div>` : ''}
+      <label class="drop" for="iFile">${I('doc')}<b>${im.file ? esc(im.file) : 'Glisser le fichier Excel ici'}</b><span>${im.file ? 'Prêt à analyser' : 'ou choisir un fichier'}</span><input id="iFile" type="file" accept=".xlsx,.xls,.csv" class="sr"></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="iSample">Utiliser un fichier d’exemple</button><button class="btn plain" id="iTpl">Télécharger le gabarit Excel</button></div>`;
+    else if (im.step === 1) step = `<div class="muted" style="font-size:13px;margin-bottom:10px">L’appli propose la correspondance des colonnes. Vérifiez puis continuez.</div><div class="group" style="margin-top:0">${COLS.map(([src, dst, ok]) => `<div class="kv"><span class="k mono" style="width:auto;flex:1">${esc(src)}</span>${I('right', 'chev')}<span class="v" style="flex:1">${esc(dst)} ${ok ? `<span class="badge ok">${I('check')}Reconnu</span>` : '<span class="badge">Facultatif</span>'}</span></div>`).join('')}</div>`;
+    else if (im.step === 2) step = `<div class="mini-stats"><div><span>Nouveaux</span><b>34</b></div><div><span>Déjà connus</span><b>3</b></div><div><span>Erreurs</span><b style="color:var(--danger)">1</b></div></div>
+      <div class="group-h">À vérifier</div><div class="group" style="margin-top:0">${kv('Ligne 12', '<span style="color:var(--danger)">N° de série manquant</span>')}${kv('Lignes 4, 9, 21', 'Doublons : déjà dans le parc, ignorés')}</div>`;
+    else step = `<div class="int-note">${I('check')}<span>Rien n’a encore été créé. Confirmer ajoute <b>34 équipements</b> à ${esc(org(etabsOf(im.clientId)[0].id).name)}, en « Pas encore fait ».</span></div>`;
+    v.innerHTML = `<div class="page-head"><div><h1>Paramètres</h1></div></div>${paramTabs('importer')}
+      <div class="grid-2">
+        <div class="card"><div class="card-head"><h2>Importer un fichier</h2></div><div class="card-body" style="padding-top:2px">
+          <ol class="steps">${IMP_STEPS.map((l, k) => `<li class="${k < im.step ? 'done' : k === im.step ? 'cur' : ''}"><span>${k < im.step ? I('check') : k + 1}</span>${l}</li>`).join('')}</ol>
+          ${step}
+          <div class="imp-f">${im.step ? '<button class="btn lg" id="iBack">Retour</button>' : ''}<button class="btn primary lg" id="iNext" ${im.step === 0 && !im.file ? 'disabled' : ''}>${im.step === 3 ? 'Importer 34 équipements' : im.step === 0 ? 'Analyser le fichier' : 'Continuer'}</button></div>
+        </div></div>
+        <div class="card"><div class="card-head"><h2>Derniers imports</h2></div><div class="card-body" style="padding-top:2px"><ul class="rows">${db.imports.slice().reverse().map((x) => `<li><span class="act-ico">${I('doc')}</span><div class="r-main"><b>${esc(x.file)}</b><span>${dShort(x.date)} · ${x.lignes} lignes · ${esc(x.etat)}</span></div></li>`).join('')}</ul></div></div>
+      </div>`;
+    $$('[data-it]', v).forEach((b) => (b.onclick = () => { im.type = b.dataset.it; render(); }));
+    const ic = $('#iClient'); if (ic) ic.onclick = (ev) => menu(ev.currentTarget, db.clients.map((c) => ({ l: esc(c.name), on: c.id === im.clientId, fn: () => { im.clientId = c.id; render(); } })), 'Client');
+    const fi = $('#iFile'); if (fi) fi.onchange = () => { if (fi.files[0]) { im.file = fi.files[0].name; render(); } };
+    const sm = $('#iSample'); if (sm) sm.onclick = () => { im.file = 'exemple_equipements.xlsx'; render(); };
+    const tp = $('#iTpl'); if (tp) tp.onclick = () => toast('Gabarit Excel : disponible dans la vraie app');
+    const bk = $('#iBack'); if (bk) bk.onclick = () => { im.step--; render(); };
+    $('#iNext').onclick = () => {
+      if (im.step < 3) { im.step++; render(); return; }
+      const o = etabsOf(im.clientId)[0]; const types = ['Lève-personne sur rail', 'Rail', 'Chaise de douche'];
+      for (let k = 0; k < 34; k++) db.equipements.push({ id: Math.max(...db.equipements.map((e) => e.id)) + 1, etabId: o.id, type: types[k % 3], local: String(500 + k), modeleId: null, ns: `IMP-${String(2600 + k)}`, annee: 2019 + (k % 6), etat: 'jamais', last: null });
+      db.imports.push({ id: db.imports.length + 1, file: im.file, date: TODAY, lignes: 38, etat: 'Import terminé · 34 créés · 3 doublons ignorés · 1 erreur' });
+      parcState.imp = null; save(); IX = null; render();
+      toast(`34 équipements ajoutés à ${o.name}`, null, false, { l: 'Voir', fn: () => { location.hash = `etablissement-${o.id}`; } });
+    };
   }
 
   /* ———————————————————— Liaisons des lignes ———————————————————— */
@@ -1729,6 +1932,7 @@
     // Équipements : n° de série, local (« 214 érables »), modèle ou type, avec l'établissement.
     if (words.some((w) => w.length >= 2)) db.equipements.filter((e) => m(e.ns, `local ${e.local}`, e.local, eqTitle(e), e.type, org(e.etabId).name)).slice(0, 6)
       .forEach((e) => eqRes.push({ sec: 'Équipements', l: `${esc(eqTitle(e))} <span class="r-type">· local ${esc(e.local)}</span>`, sub: `${esc(e.ns)} · ${esc(org(e.etabId).name)}`, icon: I('cam'), fn: () => { closeSheet(); location.hash = `equipement-${e.id}`; } }));
+    db.modeles.filter((x) => m(modeleName(x), x.type, ...(x.aliasList || []))).slice(0, 3).forEach((x) => eqRes.push({ sec: 'Modèles', l: esc(modeleName(x)), sub: `${esc(x.type)} · ${nf.format(eqCountOf(x.id))} équipements`, icon: I('tag'), fn: () => { closeSheet(); location.hash = `modele-${x.id}`; } }));
     // Un chiffre dans la recherche (n° de série, local) : le parc passe avant les ventes.
     if (/\d/.test(q)) out.unshift(...eqRes, ...etabRes); else out.push(...etabRes, ...eqRes);
     db.persons.filter((p) => m(p.name, p.email, p.role, org(p.orgId).name)).slice(0, 4).forEach((p) => out.push({ sec: 'Personnes', l: esc(p.name), sub: `${esc(p.role)} · ${esc(org(p.orgId).name)}`, icon: I('person'), fn: () => openPerson(p.id) }));

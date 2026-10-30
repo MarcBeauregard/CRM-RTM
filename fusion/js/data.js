@@ -283,6 +283,7 @@
     M('Maxi Move', 'Arjo', 'Lève-personne mobile', 227), M('Minilift 160', 'Handicare', 'Lève-personne mobile', 160),
     M('Carendo', 'Arjo', 'Chaise de douche', 182), M('Alenti', 'Arjo', 'Chaise de bain', 182),
   ].map((m, k) => Object.assign({ id: 700 + k, aliases: i2(2, 12), manuel: k === 1 }, m));
+  // Le seul manuel de pièces déjà cartographié : 4 zones sur 2 pages.
   const modelesOf = (type) => modeles.filter((m) => m.type === type);
 
   // Catalogue de pièces (numéros fictifs, même logique que l'export Acomba).
@@ -294,6 +295,7 @@
     pieces.push({ id: 3000 + pieces.length, code: `${m.name.replace(/[^A-Z0-9]/gi, '').slice(0, 4).toUpperCase()}-${c}${k}`, desc: `${d} — ${marques.find((x) => x.id === m.marqueId).name} ${m.name}`, modeleId: m.id, posees: i2(0, 30) });
   }));
 
+  modeles[1].zones = pieces.filter((p) => p.modeleId === modeles[1].id).slice(0, 4).map((p, k) => ({ id: 1 + k, page: k < 3 ? 1 : 2, x: [36, 38, 41, 14][k], y: [7, 31, 71, 82][k], w: [28, 22, 18, 12][k], h: [12, 22, 15, 9][k], pieceId: p.id }));
   const NOTE_BY = { BAT: 'Batterie ne tient plus la charge.', CHG: 'Chargeur mural ne charge plus.', SNG: 'Sangle effilochée, retirer du service.', ROU: 'Roue rivetée brisée, le chariot bloque dans la courbe.',
     BUT: 'Butée de fin de course desserrée.', PIN: 'Butée sans double sécurité, pin à installer.', TEL: 'Télécommande intermittente.', MOT: 'Levage saccadé sous charge, moteur à remplacer.', CAB: 'Câble d’alimentation endommagé.', FRE: 'Frein de chariot inefficace.' };
   const NOTES_NC = ['Batterie ne tient plus la charge.', 'Roue rivetée brisée, chariot bloque dans la courbe.', 'Butée sans double sécurité, pin à installer.',
