@@ -57,6 +57,28 @@ const check = (ok, label) => { console.log(`${ok ? '✓' : '✗'} ${label}`); if
   await p.keyboard.press('n'); await p.waitForTimeout(300);
   check(await p.locator('.modal h2:has-text("Nouvelle affaire")').count() === 1, 'touche N : nouvelle affaire');
 
+  // Validation au clavier : 3 = pas de soumission, Entrée enregistre et passe au suivant, Échap revient à la file.
+  await p.goto(url + '#avalider'); await p.waitForTimeout(150);
+  const first = +(await p.locator('.queue li').first().getAttribute('data-href')).split('-')[1];
+  await p.locator('.queue li').first().click(); await p.waitForTimeout(250);
+  await p.keyboard.press('3'); await p.waitForTimeout(100);
+  check(await p.locator('[data-dec="aucune"][aria-checked="true"]').count() === 1, 'touche 3 : « Pas de soumission »');
+  await p.locator('body').click({ position: { x: 5, y: 600 } }); await p.keyboard.press('Enter'); await p.waitForTimeout(350);
+  check(await p.evaluate((i) => { const x = window.__crm.db.interventions.find((y) => y.id === i); return x.status === 'valide' && x.decision === 'aucune'; }, first) && !(await p.evaluate(() => location.hash)).endsWith(String(first)), 'Entrée enregistre et passe au suivant');
+  const at = await p.evaluate(() => location.hash); await p.keyboard.press('ArrowRight'); await p.waitForTimeout(200);
+  check(await p.evaluate(() => location.hash) !== at, '→ : intervention suivante');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  check(await p.evaluate(() => location.hash) === '#avalider', 'Échap : retour à la file');
+  // Soumission saisie → affaire « Soumission d'achat », puis acceptée
+  await p.goto(url + '#soumissions'); await p.waitForTimeout(150);
+  await p.fill('#so-no', 'S-26-901'); await p.click('#soForm .btn.primary'); await p.waitForTimeout(250);
+  const dId = await p.evaluate(() => { const s = window.__crm.db.soumissions.find((x) => x.acomba === 'S-26-901'); return s && s.dealId; });
+  check(!!dId && await p.evaluate((i) => window.__crm.db.deals.find((d) => d.id === i).pipelineId === 7, dId), 'soumission saisie → affaire « Soumission d’achat »');
+  await p.click('#soTabs button[data-s=saisie]'); await p.locator('[data-so]').first().click(); await p.waitForTimeout(150);
+  const so2 = await p.evaluate(() => window.__crm.db.soumissions.filter((s) => s.status === 'saisie').sort((a, b) => (a.created > b.created ? -1 : 1))[0]);
+  await p.click('[data-res=acceptee]'); await p.waitForTimeout(200);
+  check(await p.evaluate((i) => { const s = window.__crm.db.soumissions.find((x) => x.id === i); const d = window.__crm.db.deals.find((x) => x.id === s.dealId); return s.status === 'acceptee' && (!d || d.stageId === 74); }, so2.id), 'soumission acceptée → affaire « Acceptée »');
+
   if (errs.length) console.log(errs.join('\n'));
   await b.close();
   if (fails.length || errs.length) process.exitCode = 1;

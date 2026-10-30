@@ -99,6 +99,21 @@ const SCENARIOS = [
     await t.tap('.modal .btn.primary');
     await t.expect(`window.__crm.db.deals.some((d) => d.title === 'Rail endommagé — chambre 214' && d.pipelineId === 10)`, 'opportunité terrain créée');
   } },
+  { id: 'S9', name: 'Décider d’une non-conformité (soumission requise)', run: async (t, p) => {
+    if (t.mobile) await t.tap('#tabbar a[data-k=avalider]'); else await t.tap('.nav a[href="#avalider"]');
+    const id = +(await p.locator('.queue li').first().getAttribute('data-href')).split('-')[1];
+    await t.tap('.queue li');
+    await t.tap('#vSave');
+    await t.expect(`(() => { const c = window.__crm.db; return c.interventions.find((x) => x.id === ${id}).status === 'valide' && c.soumissions.some((s) => s.interventionId === ${id} && s.status === 'a_saisir'); })()`, 'décision + soumission');
+  } },
+  { id: 'S10', name: 'Saisir une soumission dans Acomba → affaire', run: async (t, p) => {
+    if (t.mobile) { await t.tap('#tabMore'); await t.tap('.menu-tile[href="#soumissions"]'); await t.tap('[data-so]'); }
+    else await t.tap('.nav a[href="#soumissions"]');
+    const so = await p.evaluate(() => window.__crm.db.soumissions.filter((s) => s.status === 'a_saisir').length);
+    await t.fill('#so-no', 'S-26-777');
+    await t.tap('#soForm .btn.primary');
+    await t.expect(`(() => { const c = window.__crm.db; const s = c.soumissions.find((x) => x.acomba === 'S-26-777'); const d = s && c.deals.find((x) => x.id === s.dealId); return s && s.status === 'saisie' && d && d.pipelineId === 7 && d.stageId === 71; })()`, 'soumission saisie + affaire');
+  } },
 ];
 
 (async () => {

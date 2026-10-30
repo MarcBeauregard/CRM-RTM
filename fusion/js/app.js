@@ -103,6 +103,7 @@
     reset: '<path d="M4 4v5h5"/><path d="M5.5 15a7.5 7.5 0 1 0 1.3-7.8L4 9"/>',
     undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
     bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
+    checkc: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
     cam: '<path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/>',
     send: '<path d="M4 12 20 4l-5 16-3-7z"/><path d="m12 13 8-9"/>',
   };
@@ -139,13 +140,15 @@
     ] },
     { label: 'Parc', items: [
       { h: '#clients', k: 'clients', l: 'Clients', i: 'org', c: () => db.clients.length, also: ['client', 'etablissement', 'equipement', 'organisations'] },
+      { h: '#avalider', k: 'avalider', l: 'À valider', i: 'checkc', c: () => db.interventions.filter((x) => x.status === 'a_valider').length, also: ['valider'], hot: true },
+      { h: '#soumissions', k: 'soumissions', l: 'Soumissions', i: 'doc', c: () => db.soumissions.filter((x) => x.status === 'a_saisir').length },
     ] },
     { label: 'Contacts', items: [
       { h: '#personnes', k: 'personnes', l: 'Personnes', i: 'person', c: () => db.persons.length },
     ] },
   ];
   const NAV_ALL = SECTIONS.flatMap((x) => x.items);
-  const TABS = ['dash', 'affaires', 'clients', 'activites'];
+  const TABS = ['dash', 'affaires', 'avalider', 'clients'];
 
   function shell() {
     const me = user(1);
@@ -215,11 +218,12 @@
 
   /* ———————————————————— Routeur ———————————————————— */
   const routes = { '': viewDash, accueil: viewDash, affaires: viewDeals, projets: viewProjects, activites: viewActivities, organisations: viewClients, clients: viewClients, personnes: viewPersons,
-    client: () => viewClient(routeId), etablissement: () => viewEtab(routeId), equipement: () => viewEquip(routeId) };
+    client: () => viewClient(routeId), etablissement: () => viewEtab(routeId), equipement: () => viewEquip(routeId),
+    avalider: viewAValider, valider: () => viewValider(routeId), soumissions: viewSoumissions };
   let current = '', routeId = null;
   function route() {
     const raw = location.hash.replace(/^#\/?/, '').split('?')[0];
-    const pm = raw.match(/^(client|etablissement|equipement)-(\d+)$/);
+    const pm = raw.match(/^(client|etablissement|equipement|valider)-(\d+)$/);
     const h = pm ? pm[1] : raw;
     const prevId = routeId; routeId = pm ? +pm[2] : null;
     const k = routes[h] && h !== 'accueil' ? h : '';
@@ -227,7 +231,7 @@
     current = k;
     navRefresh(k || 'dash');
     closePop();
-    if (changed) closeSheet();
+    if (changed) { closeSheet(); $$('.modal-wrap').forEach((m) => m.parentElement.remove()); }
     render();
     if (changed) window.scrollTo(0, 0);
   }
@@ -1013,6 +1017,194 @@
     bindRows(v);
   }
 
+  /* ———————————————————— Parc : À valider, validation, soumissions ———————————————————— */
+  const intv = (id) => db.interventions.find((x) => x.id === id);
+  const eqWhere = (e) => { const o = org(e.etabId); return `${o.name} · local ${e.local}`; };
+  // File « À décider » : non-conformités envoyées par les techniciens, plus récentes d'abord, filtres client/technicien.
+  function queue() {
+    const f = parcState;
+    return db.interventions.filter((x) => x.status === 'a_valider').filter((x) => {
+      const e = equip(x.eqId);
+      return (!f.qClient || org(e.etabId).clientId === f.qClient) && (!f.qTech || x.techId === f.qTech);
+    }).sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : a.id - b.id));
+  }
+  const unknownEqs = () => db.equipements.filter((e) => !e.modeleId && e.type !== 'Rail' && (!parcState.qClient || org(e.etabId).clientId === parcState.qClient));
+
+  function viewAValider() {
+    const v = $('#view');
+    const tab = parcState.vTab || 'nc';
+    const q = queue(); const unk = unknownEqs();
+    const cl = parcState.qClient ? client(parcState.qClient) : null; const te = parcState.qTech ? tech(parcState.qTech) : null;
+    const TABS_V = [['nc', 'À décider', q.length, 'À décider'], ['modele', 'Modèle à identifier', unk.length, 'Modèles'], ['nouveau', 'Nouveaux équipements', 0, 'Nouveaux']];
+    let list = '';
+    if (tab === 'nc') {
+      list = q.map((x) => { const e = equip(x.eqId); return `<li data-href="#valider-${x.id}"><span class="act-ico late">${I('warn')}</span><div class="r-main"><b>${esc(eqTitle(e))}<i class="r-type"> · ${esc(e.type.toLowerCase())}</i></b><span>${esc(eqWhere(e))}</span><span class="r-note">« ${esc(x.note)} »</span></div><div class="r-end hide-sm">${esc(tech(x.techId).name)}<br>${rel(x.date)}</div><span class="btn">Décider</span></li>`; }).join('');
+    } else if (tab === 'modele') {
+      list = unk.slice(0, 80).map((e) => `<li data-ident="${e.id}"><span class="act-ico" style="background:color-mix(in srgb,var(--warn-fill) 16%,transparent);color:var(--warn)">${I('cam')}</span><div class="r-main"><b>${esc(e.type)} · n° <span class="mono">${esc(e.ns)}</span></b><span>${esc(eqWhere(e))}</span></div><span class="btn">Identifier</span></li>`).join('');
+    }
+    v.innerHTML = `<div class="page-head"><div><h1>À valider</h1><div class="sub">Envoyé par les techniciens depuis RailConfig, en attente du bureau</div></div>
+      <div class="tools">${tab === 'nc' && q.length ? `<a class="btn primary" href="#valider-${q[0].id}" aria-label="Traiter un par un">${I('check')}<span class="hide-sm">Traiter un par un</span></a>` : ''}</div></div>
+      <div class="seg page-tabs" id="vTabs" role="tablist">${TABS_V.map(([k, l, n, sh]) => `<button role="tab" aria-selected="${tab === k}" aria-pressed="${tab === k}" data-t="${k}" title="${l}"><span class="hide-sm">${l}</span><span class="mobile-only">${sh}</span><span class="tab-n">${nf.format(n)}</span></button>`).join('')}</div>
+      <div class="eq-tools"><button class="pill" id="vClient">${cl ? esc(cl.name) : 'Tous les clients'} ${I('down', 'chev')}</button>${tab === 'nc' ? `<button class="pill" id="vTech">${te ? esc(te.name) : 'Tous les techniciens'} ${I('down', 'chev')}</button>` : ''}<span class="muted" style="font-size:13px">Plus récents en premier</span></div>
+      <div class="card" style="padding:0 16px 0 12px"><ul class="rows queue">${list || `<li class="empty" style="display:block"><b>${tab === 'nouveau' ? 'Aucun nouvel équipement' : 'Rien à valider'}</b>${tab === 'nouveau' ? 'Les équipements ajoutés sur le terrain par les techniciens apparaîtront ici.' : 'Les non-conformités envoyées par les techniciens apparaîtront ici.'}</li>`}</ul></div>`;
+    $$('#vTabs button').forEach((b) => (b.onclick = () => { parcState.vTab = b.dataset.t; render(); }));
+    $('#vClient').onclick = (ev) => menu(ev.currentTarget, [{ l: 'Tous les clients', on: !parcState.qClient, fn: () => { parcState.qClient = 0; render(); } }, { sep: true },
+      ...db.clients.map((c) => ({ l: esc(c.name), on: parcState.qClient === c.id, fn: () => { parcState.qClient = c.id; render(); } }))], 'Client');
+    const vt = $('#vTech'); if (vt) vt.onclick = (ev) => menu(ev.currentTarget, [{ l: 'Tous les techniciens', on: !parcState.qTech, fn: () => { parcState.qTech = 0; render(); } }, { sep: true },
+      ...db.techniciens.map((t) => ({ l: esc(t.name), on: parcState.qTech === t.id, fn: () => { parcState.qTech = t.id; render(); } }))], 'Technicien');
+    $$('[data-ident]', v).forEach((li) => (li.onclick = () => identifyModel(equip(+li.dataset.ident))));
+    bindRows(v);
+  }
+
+  // Identifier ou corriger le modèle : les modèles du même type, en un tap.
+  function identifyModel(e, after) {
+    const opts = db.modeles.filter((m) => m.type === e.type);
+    sheetState = null;
+    sheet(`${sheetTop(`${esc(e.type)} · local ${esc(e.local)}`)}<div class="sheet-scroll"><h2>Quel modèle ?</h2><div class="lead">n° <span class="mono">${esc(e.ns)}</span> · ${esc(org(e.etabId).name)}</div>
+      <div class="photos" style="margin-top:16px"><figure>${I('cam')}<figcaption>Plaque signalétique</figcaption></figure><figure>${I('cam')}<figcaption>Vue d’ensemble</figcaption></figure></div>
+      <div class="group-h">Modèles · ${esc(e.type.toLowerCase())}</div><div class="group" style="margin-top:0">${opts.map((m) => kv(`<span style="color:var(--ink);font-weight:500">${esc(modeleName(m))}</span>`, e.modeleId === m.id ? `<span class="badge ok">${I('check')}Actuel</span>` : '', `data-pick="${m.id}"`)).join('')}</div></div>`, (s) => {
+      $$('[data-pick]', s).forEach((r) => (r.onclick = () => {
+        const prev = e.modeleId; e.modeleId = +r.dataset.pick; save(); closeSheet(); render();
+        toast(`Identifié : ${modeleName(modele(e.modeleId))}`, () => { e.modeleId = prev; save(); render(); });
+        if (after) after();
+      }));
+    });
+  }
+
+  const DECISIONS = [['corrige', '1', 'Corrigé sur place', 'Rien à facturer'], ['soumission', '2', 'Soumission requise', 'Pièces ou main-d’œuvre à proposer'], ['aucune', '3', 'Pas de soumission', 'Client avisé, aucune suite']];
+  const pieceRow = ([pid, qty]) => { const p = db.pieces.find((x) => x.id === pid); return p ? `<li><span class="mono">${esc(p.code)}</span><span class="ell">${esc(p.desc.split(' — ')[0])}</span><span class="num">× ${qty}</span></li>` : ''; };
+  function viewValider(id) {
+    const v = $('#view'); const x = intv(id);
+    if (!x) return viewAValider();
+    const e = equip(x.eqId), o = org(e.etabId), c = client(o.clientId), m = e.modeleId ? modele(e.modeleId) : null;
+    const q = queue(); let pos = q.findIndex((y) => y.id === id);
+    const done = x.status === 'valide';
+    const list = pos >= 0 ? q : [x];
+    if (pos < 0) pos = 0;
+    const choice = parcState.choice && parcState.choiceFor === id ? parcState.choice : x.decision || 'soumission';
+    const photo = parcState.photoFor === id ? parcState.photo || 0 : 0;
+    const PH = ['Plaque signalétique', 'Vue d’ensemble', 'Anomalie signalée'];
+    v.innerHTML = `${crumbs([['À valider', '#avalider'], ['À décider', '#avalider'], [done ? 'Décidée' : `${pos + 1} sur ${list.length}`]])}
+      <div class="page-head"><div><h1>${esc(eqTitle(e))} · local ${esc(e.local)}</h1><div class="sub"><a href="#client-${c.id}">${esc(c.name)}</a> · <a href="#etablissement-${o.id}">${esc(o.name)}</a></div></div>
+        <div class="tools"><span class="muted num" style="font-size:13px">${done ? 'Déjà décidée' : `${pos + 1} sur ${list.length}`}</span>
+          <button class="icon-btn" id="vPrev" aria-label="Précédent (flèche gauche)" ${pos <= 0 || done ? 'disabled' : ''} data-tip="Précédent (←)">${I('right', 'flip')}</button>
+          <button class="icon-btn" id="vNext" aria-label="Suivant (flèche droite)" ${pos >= list.length - 1 || done ? 'disabled' : ''} data-tip="Suivant (→)">${I('right')}</button></div></div>
+      ${done ? '' : `<div class="qbar" role="progressbar" aria-label="Progression dans la file" aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${pos + 1}"><i style="width:${((pos + 1) / list.length) * 100}%"></i></div>`}
+      <div class="grid-2 val-grid">
+        <div class="card"><div class="card-head"><h2>Photos du technicien</h2><span class="meta">${PH.length}</span></div><div class="card-body">
+          <div class="photo-main">${I('cam')}<span>${PH[photo]}</span></div>
+          <div class="photo-thumbs">${PH.map((l, k) => `<button type="button" aria-pressed="${k === photo}" data-ph="${k}">${l}</button>`).join('')}</div></div></div>
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div class="card"><div class="card-head"><h2>${esc(x.type)}</h2><div class="end"><span class="badge danger">Non conforme</span></div></div><div class="card-body" style="padding-top:2px">
+            <div class="muted" style="font-size:13px">${dLong(x.date)} · ${esc(tech(x.techId).name)}</div><p class="quote">« ${esc(x.note)} »</p>
+            ${x.pieces.length ? `<div class="sub-h">Pièces notées par le technicien</div><ul class="piece-list">${x.pieces.map(pieceRow).join('')}</ul>` : '<div class="muted" style="font-size:13px">Aucune pièce notée.</div>'}</div></div>
+          <div class="card"><div class="card-head"><h2 id="dec-h">Décision</h2></div><div class="card-body" style="padding-top:4px">
+            <div class="decisions" role="radiogroup" aria-labelledby="dec-h">${DECISIONS.map(([k, key, l, hint]) => `<button type="button" role="radio" aria-checked="${choice === k}" data-dec="${k}"><kbd>${key}</kbd><span><b>${l}</b><span>${hint}</span></span></button>`).join('')}</div>
+            <button class="btn primary lg" id="vSave" style="width:100%;margin-top:14px">${done ? 'Modifier la décision' : 'Enregistrer et passer au suivant'} <kbd class="on-accent">↵</kbd></button>
+            <div class="kbd-help hide-sm"><span><kbd>←</kbd><kbd>→</kbd> précédent / suivant</span><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> décision</span><span><kbd>E</kbd> corriger</span><span><kbd>Échap</kbd> retour</span></div>
+          </div></div>
+          <div class="card"><div class="card-head"><h2>Équipement identifié</h2><div class="end"><button class="btn plain" id="vFix">Corriger <kbd class="hide-sm">E</kbd></button></div></div><div class="card-body" style="padding:0 0 6px"><div class="group flat">
+            ${kv('Type', esc(e.type))}${kv('Marque', m ? esc(marque(m.marqueId).name) : '<span style="color:var(--warn)">À identifier</span>')}${kv('Modèle', m ? esc(m.name) : '<span style="color:var(--warn)">À identifier</span>')}${kv('N° de série', `<span class="mono">${esc(e.ns)}</span>`)}${kv('Fiche équipement', 'Ouvrir', `data-href="#equipement-${e.id}"`)}
+          </div></div></div>
+        </div>
+      </div>`;
+    const go = (d) => { const n = list[pos + d]; if (n && !done) location.hash = `valider-${n.id}`; };
+    $('#vPrev').onclick = () => go(-1); $('#vNext').onclick = () => go(1);
+    $$('[data-ph]', v).forEach((b) => (b.onclick = () => { parcState.photo = +b.dataset.ph; parcState.photoFor = id; render(); }));
+    $$('[data-dec]', v).forEach((b) => (b.onclick = () => { parcState.choice = b.dataset.dec; parcState.choiceFor = id; render(); }));
+    $('#vFix').onclick = () => identifyModel(e, () => location.hash === `#valider-${id}` && render());
+    $('#vSave').onclick = () => decide(x, choice, list, pos);
+    bindRows(v);
+  }
+  function decide(x, choice, list, pos) {
+    const e = equip(x.eqId); const prev = { status: x.status, decision: x.decision, etat: e.etat };
+    x.status = 'valide'; x.decision = choice;
+    if (choice === 'corrige') e.etat = 'ok';
+    let so = db.soumissions.find((s) => s.interventionId === x.id);
+    let created = null;
+    if (choice === 'soumission' && !so) { created = { id: Math.max(8000, ...db.soumissions.map((s) => s.id)) + 1, interventionId: x.id, eqId: e.id, etabId: e.etabId, status: 'a_saisir', acomba: null, dealId: null, created: TODAY }; db.soumissions.push(created); }
+    if (choice !== 'soumission' && so && so.status === 'a_saisir') db.soumissions.splice(db.soumissions.indexOf(so), 1);
+    save(); IX = null; parcState.choice = null;
+    const next = queue()[0];
+    toast(choice === 'soumission' ? 'Soumission à saisir dans Acomba' : choice === 'corrige' ? 'Corrigé sur place' : 'Pas de soumission', () => {
+      Object.assign(x, { status: prev.status, decision: prev.decision }); e.etat = prev.etat; if (created) db.soumissions.splice(db.soumissions.indexOf(created), 1); save(); IX = null; location.hash = `valider-${x.id}`; render();
+    });
+    location.hash = next ? `valider-${next.id}` : 'avalider';
+    if (!next) setTimeout(() => toast('File terminée : tout est décidé'), 2600);
+  }
+
+  const SO_ST = [['a_saisir', 'À saisir dans Acomba'], ['saisie', 'Attend le client'], ['acceptee', 'Acceptées'], ['refusee', 'Refusées ou sans suite']];
+  function soLines(so) { const x = intv(so.interventionId); return x ? x.pieces : []; }
+  function viewSoumissions() {
+    const v = $('#view'); const st = parcState.soSt || 'a_saisir';
+    const items = db.soumissions.filter((s) => s.status === st).sort((a, b) => (a.created > b.created ? -1 : 1));
+    let sel = items.find((s) => s.id === parcState.soSel) || items[0];
+    const mobile = matchMedia('(max-width: 760px)').matches;
+    v.innerHTML = `${crumbs([['À valider', '#avalider'], ['Soumissions']])}<div class="page-head"><div><h1>Soumissions</h1><div class="sub">L’appli prépare les pièces ; la soumission se saisit dans Acomba, puis son numéro devient une affaire</div></div>
+      <div class="tools"><button class="btn" id="soXls">${I('doc')}<span class="hide-sm">Exporter en Excel</span></button></div></div>
+      <div class="seg page-tabs" id="soTabs" role="tablist" style="max-width:860px">${SO_ST.map(([k, l]) => `<button role="tab" aria-selected="${st === k}" aria-pressed="${st === k}" data-s="${k}">${l}<span class="tab-n">${db.soumissions.filter((s) => s.status === k).length}</span></button>`).join('')}</div>
+      ${items.length ? `<div class="so-split"><div class="card so-list"><ul class="rows">${items.map((s) => { const e = equip(s.eqId); const x = intv(s.interventionId); return `<li data-so="${s.id}" ${!mobile && sel && s.id === sel.id ? 'aria-current="true"' : ''}><div class="r-main"><b>${esc(eqTitle(e))}</b><span>${esc(eqWhere(e))}</span><span>${s.acomba ? `<span class="mono">${esc(s.acomba)}</span> · ` : ''}${plural(soLines(s).length, 'pièce')} · ${esc(tech(x.techId).name)}</span></div><div class="r-end">${rel(s.created)}</div></li>`; }).join('')}</ul></div>
+        ${mobile ? '' : `<div class="card so-detail" id="soDetail"></div>`}</div>`
+        : `<div class="card"><div class="empty"><b>${{ a_saisir: 'Rien à saisir', saisie: 'Aucune soumission en attente', acceptee: 'Aucune soumission acceptée', refusee: 'Aucune soumission refusée' }[st]}</b>${{ a_saisir: 'Les non-conformités avec la décision « Soumission requise » arrivent ici.', saisie: 'Une fois le n° Acomba noté, la soumission attend la réponse du client ici.', acceptee: 'Les travaux acceptés deviennent une intervention à planifier.', refusee: 'Les soumissions refusées ou sans suite restent consultables ici.' }[st]}</div></div>`}`;
+    $$('#soTabs button').forEach((b) => (b.onclick = () => { parcState.soSt = b.dataset.s; parcState.soSel = null; render(); }));
+    $('#soXls').onclick = () => toast(`${plural(items.length, 'soumission')} prête${items.length > 1 ? 's' : ''} pour Excel (simulation)`);
+    $$('[data-so]', v).forEach((li) => (li.onclick = () => { parcState.soSel = +li.dataset.so; if (mobile) soSheet(+li.dataset.so); else render(); }));
+    if (!mobile && sel) soDetail($('#soDetail'), sel);
+  }
+  function soSheet(id) {
+    sheetState = { fn: soSheet, id, same: sheetState && sheetState.id === id };
+    sheet(`${sheetTop('Soumission')}<div class="sheet-scroll" id="soSheetBody"></div>`, (s) => soDetail($('#soSheetBody', s), db.soumissions.find((x) => x.id === id), true));
+  }
+  function soDetail(el, so, inSheet) {
+    const e = equip(so.eqId), x = intv(so.interventionId), d = so.dealId ? deal(so.dealId) : null;
+    const lines = soLines(so); const ticks = parcState.ticks && parcState.ticksFor === so.id ? parcState.ticks : {};
+    const nDone = Object.values(ticks).filter(Boolean).length;
+    el.innerHTML = `<div class="${inSheet ? '' : 'card-body'}" style="${inSheet ? '' : 'padding-top:18px'}">
+      <div class="so-h"><div><h2 style="margin:0;font:600 19px/1.3 var(--font-display);letter-spacing:-.015em">${esc(eqTitle(e))}</h2><div class="muted" style="font-size:13px">${esc(eqWhere(e))} · ${dShort(x.date)} · ${esc(tech(x.techId).name)}</div></div><a class="btn plain" href="#equipement-${e.id}">Fiche équipement</a></div>
+      <p class="quote">« ${esc(x.note)} »</p>
+      ${so.status === 'a_saisir' ? `${lines.length ? `<div class="sub-h" style="display:flex">À saisir dans Acomba<span class="muted" style="margin-left:auto;font-weight:500">${nDone} sur ${lines.length}</span></div>
+        <ol class="acomba-lines">${lines.map(([pid, qty], k) => { const p = db.pieces.find((y) => y.id === pid); return `<li><button type="button" class="check ${ticks[k] ? 'on' : ''}" role="checkbox" aria-checked="${!!ticks[k]}" aria-label="Ligne ${esc(p.code)} saisie dans Acomba" data-tick="${k}"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button><span class="al-main"><b class="mono">${esc(p.code)}</b><span>${esc(p.desc.split(' — ')[0])}</span></span><span class="num">× ${qty}</span><button type="button" class="btn sm" data-copy="${esc(p.code)}">Copier</button></li>`; }).join('')}</ol>`
+        : `<div class="int-note">${I('warn')}<span>Le technicien n’a pas noté de pièces : à choisir dans la fiche du modèle.</span></div>`}
+        <form class="acomba-form" id="soForm"><div class="field"><label for="so-no">N° de soumission Acomba</label><input id="so-no" required placeholder="ex. S-26-123" autocomplete="off"></div>
+          <div class="field"><label for="so-v">Montant ($)</label><input id="so-v" inputmode="numeric" placeholder="Optionnel" autocomplete="off"></div>
+          <button class="btn primary lg">Marquer comme saisie</button></form>`
+      : `<div class="group" style="margin-top:16px">${kv('N° Acomba', `<span class="mono">${esc(so.acomba || '—')}</span>`)}${d ? kv('Affaire', `${esc(stageOf(d).name)} · ${moneyC(d.value)}`, `data-deal="${d.id}"`) : ''}</div>
+        ${so.status === 'saisie' ? `<div class="actions"><button class="btn ok lg" data-res="acceptee">${I('check')}Acceptée</button><button class="btn danger lg" data-res="refusee">${I('x')}Refusée</button></div>` : ''}`}
+    </div>`;
+    $$('[data-tick]', el).forEach((b) => (b.onclick = () => { const t = Object.assign({}, ticks); t[b.dataset.tick] = !t[b.dataset.tick]; parcState.ticks = t; parcState.ticksFor = so.id; soDetail(el, so, inSheet); }));
+    $$('[data-copy]', el).forEach((b) => (b.onclick = () => {
+      const txt = b.dataset.copy; const done = () => { b.textContent = 'Copié'; setTimeout(() => (b.textContent = 'Copier'), 1400); };
+      try { navigator.clipboard.writeText(txt).then(done, done); } catch (er) { done(); }
+    }));
+    const f = $('#soForm', el);
+    if (f) f.onsubmit = (ev) => { ev.preventDefault(); markEntered(so, $('#so-no', el).value.trim(), +String($('#so-v', el).value).replace(/[^\d]/g, '') || 0); };
+    $$('[data-res]', el).forEach((b) => (b.onclick = () => resolveSo(so, b.dataset.res)));
+    bindRows(el);
+  }
+  // Soumission saisie dans Acomba → affaire « Soumission d'achat » (créée, ou avancée si elle existe).
+  function markEntered(so, no, value) {
+    if (!no) return;
+    const e = equip(so.eqId), x = intv(so.interventionId), m = e.modeleId ? modele(e.modeleId) : null;
+    const pc = x.pieces[0] ? db.pieces.find((p) => p.id === x.pieces[0][0]) : null;
+    let d = so.dealId ? deal(so.dealId) : null; const isNew = !d;
+    if (!d) {
+      d = { id: Math.max(...db.deals.map((q) => q.id)) + 1, title: `${pc ? pc.desc.split(' — ')[0] : 'Réparation'} — ${m ? m.name : e.type} local ${e.local}`, pipelineId: 7, stageId: 71, orgId: e.etabId,
+        personId: (db.persons.find((p) => p.orgId === e.etabId) || {}).id || null, ownerId: 1, value, status: 'open', created: TODAY, stageChanged: TODAY, expectedClose: isoAdd(30), lostReason: null, closeDate: null, soumission: no, labels: [] };
+      db.deals.push(d);
+    } else { d.stageId = 71; d.stageChanged = TODAY; d.soumission = no; if (value) d.value = value; }
+    Object.assign(so, { status: 'saisie', acomba: no, dealId: d.id }); save();
+    closeSheet(); parcState.soSel = null; render();
+    toast(`${isNew ? 'Affaire créée' : 'Affaire mise à jour'} · Soumission d’achat`, () => { Object.assign(so, { status: 'a_saisir', acomba: null, dealId: isNew ? null : so.dealId }); if (isNew) db.deals.splice(db.deals.indexOf(d), 1); save(); render(); }, false, { l: 'Ouvrir', fn: () => openDeal(d.id) });
+  }
+  function resolveSo(so, res) {
+    const d = so.dealId ? deal(so.dealId) : null; const prev = { so: so.status, d: d && { stageId: d.stageId, status: d.status, lostReason: d.lostReason, closeDate: d.closeDate } };
+    so.status = res;
+    if (d && res === 'acceptee') { d.stageId = 74; d.stageChanged = TODAY; }
+    if (d && res === 'refusee') { d.status = 'lost'; d.lostReason = 'Refusée par le client'; d.closeDate = TODAY; }
+    save(); closeSheet(); render();
+    toast(res === 'acceptee' ? 'Soumission acceptée · affaire à « Acceptée »' : 'Soumission refusée · affaire perdue', () => { so.status = prev.so; if (d) Object.assign(d, prev.d); save(); render(); });
+  }
+
   /* ———————————————————— Liaisons des lignes ———————————————————— */
   function bindRows(root) {
     $$('[data-done]', root).forEach((b) => (b.onclick = (e) => {
@@ -1490,6 +1682,16 @@
       if (e.key === 'Escape' && !$('.modal')) { closePop(); closeSheet(); }
       const typing = e.target.closest && e.target.closest('input, textarea, select, [contenteditable]');
       if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && !$('.modal') && e.key.toLowerCase() === 'n') { e.preventDefault(); dealForm(); }
+      // Validation au clavier : ← → naviguer, 1 2 3 décider, E corriger, Entrée enregistrer, Échap revenir à la file.
+      if (current === 'valider' && !typing && !$('.modal') && !$('#sheet') && !$('#pop') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const k = e.key; const click = (sel) => { const b = $(sel); if (b && !b.disabled) { e.preventDefault(); b.click(); return true; } return false; };
+        if (k === 'ArrowLeft' && click('#vPrev')) return;
+        if (k === 'ArrowRight' && click('#vNext')) return;
+        if (['1', '2', '3'].includes(k) && click(`[data-dec="${DECISIONS[+k - 1][0]}"]`)) return;
+        if (k.toLowerCase() === 'e' && click('#vFix')) return;
+        if (k === 'Enter' && !(document.activeElement && document.activeElement.closest('button, a, [role=radio]')) && click('#vSave')) return;
+        if (k === 'Escape') { e.preventDefault(); location.hash = 'avalider'; return; }
+      }
       if (!typing && !$('.modal') && e.key === '/') { e.preventDefault(); if (getComputedStyle($('#searchBox')).display === 'none') searchSheet(); else q.focus(); }
     });
   }

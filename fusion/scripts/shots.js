@@ -36,6 +36,9 @@ const only = process.argv[3];
     await run(`${s}-clients`, w, h, 'light', '#clients');
     await run(`${s}-etab`, w, h, 'light', '#etablissement-100', (p) => p.click('#etabTabs button[data-t=equipements]'));
     await run(`${s}-equip`, w, h, 'light', '#equipement-10000');
+    await run(`${s}-avalider`, w, h, 'light', '#avalider');
+    await run(`${s}-valider`, w, h, 'light', '#avalider', (p) => p.click('.queue li >> nth=0'));
+    await run(`${s}-soumissions`, w, h, 'light', '#soumissions');
     await run(`${s}-dash-dark`, w, h, 'dark', '#accueil');
     await run(`${s}-deals-dark`, w, h, 'dark', '#affaires');
   }

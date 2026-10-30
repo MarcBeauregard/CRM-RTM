@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const path = require('path');
 const url = 'file://' + path.resolve(__dirname, '..', 'index.html');
-const VIEWS = ['#accueil', '#affaires', '#projets', '#activites', '#clients', '#client-900', '#etablissement-100', '#equipement-10000'];
+const VIEWS = ['#accueil', '#affaires', '#projets', '#activites', '#clients', '#client-900', '#etablissement-100', '#equipement-10000', '#avalider', '#soumissions'];
 
 const audit = () => {
   const parse = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const v = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [v[0], v[1], v[2], v[3] == null ? 1 : v[3]]; };

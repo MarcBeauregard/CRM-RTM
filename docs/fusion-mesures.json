@@ -71,6 +71,22 @@
       "screens": 2,
       "ok": true,
       "err": ""
+    },
+    "S9": {
+      "name": "Décider d’une non-conformité (soumission requise)",
+      "taps": 3,
+      "fields": 0,
+      "screens": 3,
+      "ok": true,
+      "err": ""
+    },
+    "S10": {
+      "name": "Saisir une soumission dans Acomba → affaire",
+      "taps": 4,
+      "fields": 1,
+      "screens": 3,
+      "ok": true,
+      "err": ""
     }
   },
   "Ordinateur": {
@@ -143,6 +159,22 @@
       "taps": 3,
       "fields": 2,
       "screens": 2,
+      "ok": true,
+      "err": ""
+    },
+    "S9": {
+      "name": "Décider d’une non-conformité (soumission requise)",
+      "taps": 3,
+      "fields": 0,
+      "screens": 3,
+      "ok": true,
+      "err": ""
+    },
+    "S10": {
+      "name": "Saisir une soumission dans Acomba → affaire",
+      "taps": 2,
+      "fields": 1,
+      "screens": 1,
       "ok": true,
       "err": ""
     }

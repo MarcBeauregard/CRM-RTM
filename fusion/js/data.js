@@ -332,13 +332,23 @@
     } });
   });
   // File « À valider » : les envois récents des techniciens attendent une décision du bureau.
-  interventions.filter((x) => -((new Date(x.date + 'T12:00:00') - TODAY) / day) <= 21).forEach((x) => { x.status = 'a_valider'; x.decision = null; });
+  // Seules les non-conformités récentes attendent une décision ; les conformes sont validées d'office.
+  interventions.filter((x) => x.verdict === 'nc' && -((new Date(x.date + 'T12:00:00') - TODAY) / day) <= 60 && equipements.find((e) => e.id === x.eqId).last === x.date).forEach((x) => { x.status = 'a_valider'; x.decision = null; });
   // Soumissions : non-conformes validées avec décision « soumission » sur les 6 derniers mois.
   interventions.filter((x) => x.status === 'valide' && x.decision === 'soumission' && -((new Date(x.date + 'T12:00:00') - TODAY) / day) <= 180).forEach((x, k) => {
     const e = equipements.find((q) => q.id === x.eqId);
     if (e.etat !== 'nc') return;
     const saisie = k % 3 === 0;
-    soumissions.push({ id: 8000 + soumissions.length, interventionId: x.id, eqId: e.id, etabId: e.etabId, status: saisie ? 'saisie' : 'a_saisir', acomba: saisie ? `S-26-${i2(100, 999)}` : null, dealId: null, created: x.date });
+    const so = { id: 8000 + soumissions.length, interventionId: x.id, eqId: e.id, etabId: e.etabId, status: saisie ? 'saisie' : 'a_saisir', acomba: saisie ? `S-26-${i2(100, 999)}` : null, dealId: null, created: x.date };
+    // Une soumission saisie dans Acomba vit aussi comme affaire du pipeline « Soumission d'achat ».
+    if (saisie) {
+      const m = modeles.find((q) => q.id === e.modeleId); const pc = pieces.find((q) => q.id === (x.pieces[0] || [])[0]);
+      const d = { id: Math.max(...deals.map((q) => q.id)) + 1, title: `${pc ? pc.desc.split(' — ')[0] : 'Réparation'} — ${m ? m.name : e.type} local ${e.local}`, pipelineId: 7, stageId: p2([71, 71, 72]), orgId: e.etabId,
+        personId: (persons.find((q) => q.orgId === e.etabId) || {}).id || null, ownerId: 1, value: i2(4, 30) * 50, status: 'open', created: x.date, stageChanged: addDays(-i2(1, 9)),
+        expectedClose: addDays(i2(10, 40)), probability: null, lostReason: null, closeDate: null, soumission: so.acomba, labels: [] };
+      deals.push(d); so.dealId = d.id;
+    }
+    soumissions.push(so);
   });
   const packs = [];
   orgs.slice(0, 6).forEach((o, k) => {

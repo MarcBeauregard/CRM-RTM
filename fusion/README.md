@@ -23,7 +23,7 @@ Accueil · **Ventes** (Affaires, Projets, Activités) · **Parc** (Clients, À v
 | Étape | Contenu | État |
 |---|---|---|
 | 1 | Données, navigation, Clients, fiche Client, fiche Établissement, fiche Équipement | ✅ |
-| 2 | À valider, Valider une intervention (clavier), Soumissions → Affaire | à venir |
+| 2 | À valider, Valider une intervention (clavier), Soumissions → Affaire | ✅ |
 | 3 | Rapports (packs simulés), Accueil fusionné, recherche globale du parc | à venir |
 | 4 | Modèles, Marques, Pièces, fiche Modèle, Paramètres, Importer, Cartographie | à venir |
 
@@ -35,3 +35,21 @@ node scripts/interactions.js  # glisser-déposer, fiches, clavier
 node scripts/a11y.js          # cibles 44 px + contraste AA
 node scripts/shots.js shots   # captures 390 / 1024 / 1440 / 2200, clair et sombre
 ```
+
+## Mesures (iPhone 390 px / ordinateur 1440 px, interactions)
+
+| # | Scénario | iPhone | Ordinateur |
+|---|---|---|---|
+| S1–S8 | Scénarios du CRM (voir `docs/SCENARIOS.md` à la racine) | ≤ 3 | ≤ 3 |
+| S5 | Téléphone de l'acheteuse : maintenant par la recherche (« acheteuse érables ») | 2 | 2 |
+| S9 | Décider d'une non-conformité (soumission requise) | 3 | 3 |
+| S10 | Saisir une soumission dans Acomba → affaire « Soumission d'achat » | 4 | **2** |
+
+S10 se fait au bureau, là où Acomba est ouvert : 2 interactions sur ordinateur. Sur iPhone, Soumissions
+passe par le menu « Plus » (4 interactions).
+
+## Validation au clavier
+
+Sur « Valider une intervention » : ← → précédent / suivant, 1 2 3 décision, E corriger le modèle,
+Entrée enregistrer et passer au suivant, Échap revenir à la file. Sur iPhone, « Enregistrer » est
+fixé en bas de l'écran et la barre d'onglets s'efface pendant la validation.
